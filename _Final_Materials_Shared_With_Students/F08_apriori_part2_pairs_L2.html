@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part 2: Cartesian Product & L2 Scan</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #2980b9;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --highlight: #f39c12;
+            --bg: #f4f6f7;
+            --panel: #ffffff;
+            --scan-line: rgba(231, 76, 60, 0.4);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: #333;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: var(--panel);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1, h2 { color: var(--primary); margin-top: 0; }
+        
+        canvas {
+            background: #fff;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            width: 100%;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            background: var(--accent);
+            color: white;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+        }
+        button:hover { background: #1f618d; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        button.success { background: var(--success); }
+
+        .status-box {
+            font-family: monospace;
+            font-weight: bold;
+            color: var(--primary);
+            margin-left: auto;
+            background: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        .narrative {
+            background: #eaf2f8;
+            border-left: 5px solid var(--accent);
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+
+        .nav-link { margin-top: 20px; text-align: center; }
+        .nav-link a { color: var(--accent); font-weight: bold; text-decoration: none; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Step 2: Generating Candidate Pairs ($C_2$)</h1>
+        <p>We take the Frequent Items found in Part 1 (L1) and connect them to form all possible pairs.</p>
+        
+        <canvas id="canvas-C2" height="450"></canvas>
+
+        <div class="controls">
+            <button id="btn-next-pair" onclick="algoC2.nextStep()">▶ Next Connection</button>
+            <button id="btn-auto-c2" onclick="algoC2.toggleAuto()">Auto Play</button>
+            <div class="status-box" id="status-C2">Waiting to start...</div>
+        </div>
+
+        <div class="narrative">
+            <strong>The Logic (Nested Loop):</strong>
+            We pick an item (Anchor), then iterate through every <em>subsequent</em> item to form a link.
+            <br>
+            <em>Visual Guide:</em> The <strong>Green Line</strong> shows the connection being formed. The list on the right populates dynamically.
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Step 3: Verification Scan (Finding $L_2$)</h2>
+        <p>We must verify if these pairs actually exist in the database together.</p>
+        
+        <canvas id="canvas-L2" height="500"></canvas>
+
+        <div class="controls">
+            <div style="display:flex; flex-direction:column; gap:5px;">
+                <label style="font-weight:bold; font-size:0.9rem;">Target Pair:</label>
+                <select id="select-candidate" onchange="algoL2.changeCandidate()" style="padding:5px;">
+                    <option>Generate C2 First</option>
+                </select>
+            </div>
+            
+            <button id="btn-scan-row" onclick="algoL2.scanNextRow()" disabled>▶ Scan Next Row</button>
+            <button id="btn-auto-l2" onclick="algoL2.toggleAuto()" disabled>Auto Scan</button>
+            
+            <div class="status-box" id="status-L2">Select a pair to verify</div>
+        </div>
+
+        <div class="narrative">
+            <strong>Verification Logic:</strong>
+            For the selected pair (e.g., {Diaper, Beer}), we check every transaction.
+            <br>
+            <span style="color:#27ae60">MATCH:</span> Both items are present in the row. (Count increments).
+            <br>
+            <span style="color:#c0392b">MISS:</span> One or both items are missing. (Count stays same).
+        </div>
+    </div>
+
+    <div class="nav-link">
+        <span>(Part 3: Prefix Join & L3 Scan - Coming in Next File)</span>
+    </div>
+
+<script>
+    /* ==========================================================================
+       GLOBAL STATE & CONFIG
+       ========================================================================== */
+    // Consistent Data from Part 1
+    const DATASET = [
+        { id: 1, items: ["Diaper", "Beer", "Chips"] },
+        { id: 2, items: ["Baby Milk Powder", "Baby Feeder"] },
+        { id: 3, items: ["Diaper", "Beer", "Chips"] }, // Repeat to ensure triplet support
+        { id: 4, items: ["Baby Milk Powder", "Baby Feeder"] },
+        { id: 5, items: ["Diaper", "Bread"] }, // Noise
+        { id: 6, items: ["Diaper", "Beer", "Baby Milk Powder"] } // Mixed
+    ];
+
+    // The L1 Items passed from Part 1
+    const L1_ITEMS = ["Diaper", "Beer", "Chips", "Baby Milk Powder", "Baby Feeder"];
+
+    const COLORS = {
+        "Diaper": "#3498db",        
+        "Beer": "#f1c40f",          
+        "Baby Milk Powder": "#e74c3c", 
+        "Baby Feeder": "#9b59b6",   
+        "Chips": "#95a5a6",         
+        "Bread": "#bdc3c7"
+    };
+
+    /* ==========================================================================
+       ALGO 1: CARTESIAN PRODUCT VISUALIZER
+       ========================================================================== */
+    const algoC2 = {
+        canvas: document.getElementById('canvas-C2'),
+        ctx: document.getElementById('canvas-C2').getContext('2d'),
+        
+        // Loop State
+        i: 0,
+        j: 1, // Start j at i+1
+        finished: false,
+        pairs: [],
+        autoInterval: null,
+
+        nextStep() {
+            if(this.finished) return;
+
+            // 1. Create Current Pair
+            const itemA = L1_ITEMS[this.i];
+            const itemB = L1_ITEMS[this.j];
+            
+            this.pairs.push({ a: itemA, b: itemB });
+            document.getElementById('status-C2').innerText = `Connected: ${itemA} + ${itemB}`;
+
+            // 2. Advance Logic
+            this.j++;
+            if(this.j >= L1_ITEMS.length) {
+                this.i++;
+                this.j = this.i + 1;
+            }
+
+            // 3. Check Finish
+            if(this.i >= L1_ITEMS.length - 1) {
+                this.finished = true;
+                document.getElementById('status-C2').innerText = "Generation Complete!";
+                document.getElementById('btn-next-pair').disabled = true;
+                document.getElementById('btn-auto-c2').disabled = true;
+                if(this.autoInterval) clearInterval(this.autoInterval);
+                
+                // Pass data to Next Stage
+                algoL2.populateCandidates(this.pairs);
+            }
+
+            this.draw();
+        },
+
+        toggleAuto() {
+            if(this.autoInterval) {
+                clearInterval(this.autoInterval);
+                this.autoInterval = null;
+                document.getElementById('btn-auto-c2').innerText = "Auto Play";
+            } else {
+                document.getElementById('btn-auto-c2').innerText = "Stop Auto";
+                this.autoInterval = setInterval(() => this.nextStep(), 600);
+            }
+        },
+
+        draw() {
+            const w = this.canvas.width = this.canvas.parentElement.clientWidth;
+            const h = this.canvas.height;
+            const ctx = this.ctx;
+            ctx.clearRect(0,0,w,h);
+
+            // Layout: Graph on Left (60%), List on Right (40%)
+            const cx = w * 0.3;
+            const cy = h / 2;
+            const r = 130;
+
+            // 1. Draw All Connections So Far
+            ctx.lineWidth = 1;
+            this.pairs.forEach((p, idx) => {
+                const idxA = L1_ITEMS.indexOf(p.a);
+                const idxB = L1_ITEMS.indexOf(p.b);
+                
+                const angA = (idxA / L1_ITEMS.length) * Math.PI * 2 - (Math.PI/2);
+                const angB = (idxB / L1_ITEMS.length) * Math.PI * 2 - (Math.PI/2);
+
+                const x1 = cx + Math.cos(angA) * r;
+                const y1 = cy + Math.sin(angA) * r;
+                const x2 = cx + Math.cos(angB) * r;
+                const y2 = cy + Math.sin(angB) * r;
+
+                // Color logic: Highlight the very last one drawn
+                const isLast = (idx === this.pairs.length - 1);
+                ctx.strokeStyle = isLast ? "#27ae60" : "#bdc3c7";
+                ctx.lineWidth = isLast ? 3 : 1;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            });
+
+            // 2. Draw Nodes (Items)
+            L1_ITEMS.forEach((item, idx) => {
+                const ang = (idx / L1_ITEMS.length) * Math.PI * 2 - (Math.PI/2);
+                const x = cx + Math.cos(ang) * r;
+                const y = cy + Math.sin(ang) * r;
+
+                // Node Bubble
+                ctx.fillStyle = COLORS[item] || "#333";
+                ctx.beginPath();
+                ctx.arc(x, y, 12, 0, Math.PI*2);
+                ctx.fill();
+
+                // Active Halo?
+                if (!this.finished && (idx === this.i || idx === this.j)) {
+                    ctx.strokeStyle = "#2c3e50";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                // Label
+                ctx.fillStyle = "#333";
+                ctx.font = "bold 12px Arial";
+                
+                // Smart label positioning
+                const alignX = x < cx ? "right" : "left";
+                const offsetX = x < cx ? -20 : 20;
+                ctx.textAlign = alignX;
+                ctx.fillText(item.replace("Baby ", ""), x + offsetX, y + 4);
+            });
+
+            // 3. Draw List (Right Side)
+            const listX = w * 0.65;
+            ctx.textAlign = "left";
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "bold 16px Arial";
+            ctx.fillText("Candidate Pairs (C2)", listX, 30);
+            
+            ctx.font = "13px monospace";
+            const startIdx = Math.max(0, this.pairs.length - 15); // Auto scroll
+            
+            for(let k=startIdx; k<this.pairs.length; k++) {
+                const p = this.pairs[k];
+                const dy = 60 + (k - startIdx) * 22;
+                
+                // Highlight new entry
+                if(k === this.pairs.length - 1) {
+                    ctx.fillStyle = "rgba(39, 174, 96, 0.2)";
+                    ctx.fillRect(listX - 5, dy - 15, 250, 20);
+                }
+                
+                ctx.fillStyle = "#333";
+                ctx.fillText(`{ ${p.a}, ${p.b} }`, listX, dy);
+            }
+        }
+    };
+
+    /* ==========================================================================
+       ALGO 2: L2 SCANNER
+       ========================================================================== */
+    const algoL2 = {
+        canvas: document.getElementById('canvas-L2'),
+        ctx: document.getElementById('canvas-L2').getContext('2d'),
+        
+        candidates: [], // Will come from C2
+        selectedPairIndex: -1,
+        
+        currentRow: -1,
+        currentCount: 0,
+        scanStatus: "idle", // idle, matching, missing
+        autoInterval: null,
+
+        populateCandidates(pairs) {
+            this.candidates = pairs.map(p => ({ ...p, count: 0, scanned: false }));
+            
+            // Populate Dropdown
+            const sel = document.getElementById('select-candidate');
+            sel.innerHTML = '<option value="-1">-- Select Pair to Verify --</option>';
+            this.candidates.forEach((c, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.innerText = `{ ${c.a}, ${c.b} }`;
+                sel.appendChild(opt);
+            });
+            this.draw();
+        },
+
+        changeCandidate() {
+            const val = document.getElementById('select-candidate').value;
+            this.selectedPairIndex = parseInt(val);
+            this.currentRow = -1;
+            this.scanStatus = "idle";
+            
+            if(this.selectedPairIndex !== -1) {
+                // Reset count for re-scan visualization
+                this.candidates[this.selectedPairIndex].count = 0;
+                this.currentCount = 0;
+                document.getElementById('btn-scan-row').disabled = false;
+                document.getElementById('btn-auto-l2').disabled = false;
+                document.getElementById('status-L2').innerText = "Ready to scan DB...";
+            }
+            this.draw();
+        },
+
+        scanNextRow() {
+            if(this.selectedPairIndex === -1) return;
+            
+            // Check if done
+            if(this.currentRow >= DATASET.length - 1) {
+                if(this.autoInterval) clearInterval(this.autoInterval);
+                document.getElementById('status-L2').innerText = "Scan Complete. Result Final.";
+                return;
+            }
+
+            this.currentRow++;
+            const t = DATASET[this.currentRow];
+            const pair = this.candidates[this.selectedPairIndex];
+            
+            const hasA = t.items.includes(pair.a);
+            const hasB = t.items.includes(pair.b);
+            
+            if(hasA && hasB) {
+                this.scanStatus = "match";
+                this.currentCount++;
+                this.candidates[this.selectedPairIndex].count = this.currentCount;
+            } else {
+                this.scanStatus = "miss";
+            }
+            
+            document.getElementById('status-L2').innerText = `Row ${t.id}: ${this.scanStatus.toUpperCase()}`;
+            this.draw();
+        },
+
+        toggleAuto() {
+            if(this.autoInterval) {
+                clearInterval(this.autoInterval);
+                this.autoInterval = null;
+                document.getElementById('btn-auto-l2').innerText = "Auto Scan";
+            } else {
+                document.getElementById('btn-auto-l2').innerText = "Stop Auto";
+                this.autoInterval = setInterval(() => this.scanNextRow(), 800);
+            }
+        },
+
+        draw() {
+            const w = this.canvas.width = this.canvas.parentElement.clientWidth;
+            const h = this.canvas.height;
+            const ctx = this.ctx;
+            ctx.clearRect(0,0,w,h);
+
+            // 1. Draw Database (Left)
+            const dbW = w * 0.55;
+            ctx.fillStyle = "#2c3e50";
+            ctx.font = "bold 16px Arial";
+            ctx.fillText("Transaction Database", 20, 30);
+
+            const rowH = 50;
+            DATASET.forEach((t, i) => {
+                const dy = 50 + (i * 65);
+
+                // Highlight Active Row
+                if(i === this.currentRow) {
+                    ctx.fillStyle = this.scanStatus === 'match' ? "rgba(39, 174, 96, 0.2)" : "rgba(231, 76, 60, 0.2)";
+                    ctx.fillRect(10, dy-5, dbW, rowH+10);
+                    ctx.strokeStyle = this.scanStatus === 'match' ? "#27ae60" : "#c0392b";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(10, dy-5, dbW, rowH+10);
+                } else {
+                    ctx.fillStyle = "#fff";
+                    ctx.strokeStyle = "#ccc";
+                    ctx.lineWidth = 1;
+                    ctx.fillRect(20, dy, dbW-20, rowH);
+                    ctx.strokeRect(20, dy, dbW-20, rowH);
+                }
+
+                // Items Logic
+                let curX = 30;
+                t.items.forEach(item => {
+                    ctx.font = "13px Arial";
+                    ctx.fillStyle = "#333";
+
+                    // Logic: If current row, and item matches target pair
+                    if(i === this.currentRow && this.selectedPairIndex !== -1) {
+                        const pair = this.candidates[this.selectedPairIndex];
+                        if(item === pair.a || item === pair.b) {
+                            ctx.fillStyle = COLORS[item]; // Highlight match color
+                            ctx.font = "bold 14px Arial";
+                        }
+                    }
+
+                    const text = item + ",";
+                    ctx.fillText(text, curX, dy + 30);
+                    curX += ctx.measureText(text).width + 8;
+                });
+            });
+
+            // 2. Draw Candidate Info (Right)
+            const infoX = w * 0.65;
+            
+            if(this.selectedPairIndex === -1) {
+                ctx.fillStyle = "#7f8c8d";
+                ctx.font = "italic 16px Arial";
+                ctx.fillText("Select a pair to begin verification...", infoX, 100);
+            } else {
+                const pair = this.candidates[this.selectedPairIndex];
+                
+                // Card
+                ctx.fillStyle = "#ecf0f1";
+                ctx.fillRect(infoX, 50, 300, 150);
+                ctx.strokeStyle = "#2c3e50";
+                ctx.strokeRect(infoX, 50, 300, 150);
+                
+                ctx.fillStyle = "#2c3e50";
+                ctx.font = "bold 18px Arial";
+                ctx.fillText("Verifying Pair:", infoX + 20, 80);
+                
+                // The Pair
+                ctx.font = "20px Arial";
+                ctx.fillStyle = COLORS[pair.a];
+                ctx.fillText(pair.a, infoX + 20, 115);
+                ctx.fillStyle = "#333";
+                ctx.fillText("+", infoX + 20 + ctx.measureText(pair.a).width + 10, 115);
+                ctx.fillStyle = COLORS[pair.b];
+                ctx.fillText(pair.b, infoX + 50 + ctx.measureText(pair.a).width, 115);
+
+                // The Count
+                ctx.fillStyle = "#333";
+                ctx.font = "bold 24px Arial";
+                ctx.fillText(`Count: ${this.currentCount}`, infoX + 20, 160);
+                
+                // Result Status
+                if(this.currentRow === DATASET.length - 1) {
+                    const pass = this.currentCount >= 2;
+                    ctx.fillStyle = pass ? "#27ae60" : "#c0392b";
+                    ctx.fillText(pass ? "✅ FREQUENT (Keep)" : "❌ INFREQUENT (Prune)", infoX + 20, 190);
+                }
+            }
+        }
+    };
+
+    // Init first draw
+    algoC2.draw();
+    algoL2.draw();
+
+</script>
+</body>
+</html>

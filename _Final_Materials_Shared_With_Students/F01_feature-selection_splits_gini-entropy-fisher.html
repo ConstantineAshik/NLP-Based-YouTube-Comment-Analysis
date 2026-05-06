@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feature Selection & Split Lab</title>
+    <style>
+        :root {
+            --class-a: #3498db;
+            --class-a-dim: rgba(52, 152, 219, 0.2);
+            --class-b: #e67e22;
+            --class-b-dim: rgba(230, 126, 34, 0.2);
+            --correct: #27ae60;
+            --wrong: #c0392b;
+            --highlight: #f1c40f;
+            --bg: #f8fafc;
+            --text: #333;
+            --panel-bg: #ffffff;
+            --border: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding-bottom: 50px;
+        }
+
+        /* Navigation Header */
+        header {
+            background: #2c3e50;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        h1, h2, h3 { color: #2c3e50; }
+        
+        /* Panel Styles */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--bg);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        button {
+            background: var(--class-a);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #2980b9; }
+        button.active { background: var(--highlight); color: #333; }
+
+        input[type="range"] {
+            width: 200px;
+        }
+
+        /* Visualizations */
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+
+        /* Specific Layouts */
+        .jar-layout {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .jar-viz {
+            flex: 0 0 auto;
+        }
+
+        .jar-stats {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .formula-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+        }
+
+        .thermometer-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .thermometer-bar {
+            flex-grow: 1;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .thermometer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #e74c3c);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .split-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .metric-val {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--class-a);
+        }
+
+        /* Fisher Race Strip */
+        .strip-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .strip-label {
+            width: 80px;
+            font-weight: bold;
+        }
+        .strip-canvas-container {
+            flex-grow: 1;
+            position: relative;
+        }
+        .fisher-score-bar {
+            width: 100px;
+            height: 30px;
+            background: #eee;
+            margin-left: 10px;
+            position: relative;
+        }
+        .fisher-fill {
+            height: 100%;
+            background: var(--class-a);
+            transition: width 0.5s;
+        }
+        .winner-crown {
+            color: var(--highlight);
+            font-size: 1.5em;
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .winner-crown.show { opacity: 1; }
+
+        details {
+            margin-top: 15px;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--class-a);
+        }
+    </style>
+</head>
+<body>
+
+    <header style="background:#2c3e50; padding:10px; text-align:center;">
+      <nav style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
+        <a href="index.html" style="color:white; text-decoration:none;">Foundations</a>
+        <a href="high_dim.html" style="color:white; text-decoration:none;">Decision Trees</a>
+        <a href="tree_box_maker.html" style="color:white; text-decoration:none;">Box Maker</a>
+        <a href="neural_net.html" style="color:white; text-decoration:none;">Neural Nets</a>
+        <a href="fs_and_splits_lab.html" style="color:#f1c40f; text-decoration:none;">Feature & Split Lab</a>
+        <a href="tree_rules_and_covering.html" style="color:white; text-decoration:none;">Rules & Covering</a>
+        <a href="nbayes_and_metrics_lab.html" style="color:white; text-decoration:none;">Naïve Bayes & Metrics</a>
+        <a href="validation_strategies_lab.html" style="color:white; text-decoration:none;">Validation</a>
+      </nav>
+    </header>
+
+    <div class="container">
+        
+        <div style="text-align:center; margin-bottom:30px;">
+            <h1>The Impurity Playground</h1>
+            <p>Mastering the metrics behind data splits and feature selection.</p>
+        </div>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>1. The Impurity Jar</h2>
+                <div style="font-size:0.9em; color:#7f8c8d;">Understand Gini vs. Entropy</div>
+            </div>
+
+            <div class="controls">
+                <label>Metric: 
+                    <select id="impurityMetric" onchange="updateJar()">
+                        <option value="gini">Gini Impurity</option>
+                        <option value="entropy">Entropy</option>
+                    </select>
+                </label>
+                <label>Blue Ratio: <span id="ratioVal">0.5</span>
+                    <input type="range" id="ratioSlider" min="0" max="1" step="0.01" value="0.5" oninput="updateJar()">
+                </label>
+            </div>
+
+            <div class="jar-layout">
+                <div class="jar-viz">
+                    <canvas id="jarCanvas" width="300" height="300"></canvas>
+                </div>
+                <div class="jar-stats">
+                    <h3>Calculations</h3>
+                    <div class="formula-box" id="formulaDisplay">
+                        Loading...
+                    </div>
+                    
+                    <div class="thermometer-container">
+                        <span>Pure</span>
+                        <div class="thermometer-bar">
+                            <div class="thermometer-fill" id="thermometerFill"></div>
+                        </div>
+                        <span>Impure</span>
+                    </div>
+                    <div style="text-align:center; font-size:2em; font-weight:bold; color:#2c3e50; margin-top:10px;">
+                        <span id="impurityValue">0.50</span>
+                    </div>
+                    <p style="font-size:0.9em; color:#666;">
+                        * <strong>Gini</strong> ranges 0.0 to 0.5 (for 2 classes).<br>
+                        * <strong>Entropy</strong> ranges 0.0 to 1.0.
+                    </p>
+                </div>
+            </div>
+
+            <details>
+                <summary>Theory: Gini vs Entropy</summary>
+                <p><strong>Gini Impurity:</strong> Measures the probability of misclassifying a randomly chosen element if it were randomly labeled according to the distribution of labels in the set.
+                <br>Formula: $1 - \sum p_i^2$</p>
+                
+                <p><strong>Entropy:</strong> Measures the level of disorder or uncertainty. High entropy means equal mix (chaos); low entropy means pure (order).
+                <br>Formula: $- \sum p_i \log_2(p_i)$</p>
+            </details>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>2. Feature Race (Fisher Score)</h2>
+                <div style="font-size:0.9em; color:#7f8c8d;">Which feature separates classes best?</div>
+            </div>
+
+            <div class="controls">
+                <button onclick="generateFisherData()">🎲 Randomize Data</button>
+                <span>Goal: Maximize Distance between Means / Minimize Variance within Classes.</span>
+            </div>
+
+            <div id="fisherContainer">
+                </div>
+
+            <details>
+                <summary>Theory: Fisher Score</summary>
+                <p>The Fisher Score evaluates how well a feature discriminates between two classes.</p>
+                <p>$$F = \frac{(\mu_1 - \mu_2)^2}{\sigma_1^2 + \sigma_2^2}$$</p>
+                <ul>
+                    <li><strong>Numerator:</strong> Distance between class centers (we want this huge).</li>
+                    <li><strong>Denominator:</strong> Spread (variance) within classes (we want this tiny).</li>
+                </ul>
+            </details>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>3. Split Chooser</h2>
+                <div style="font-size:0.9em; color:#7f8c8d;">Find the optimal threshold.</div>
+            </div>
+
+            <div class="controls">
+                <label>Criterion: 
+                    <select id="splitCriterion" onchange="updateSplitCalc()">
+                        <option value="gini">Weighted Gini</option>
+                        <option value="entropy">Weighted Entropy</option>
+                        <option value="error">Classification Error</option>
+                    </select>
+                </label>
+                <label>Threshold:
+                    <input type="range" id="splitSlider" min="0" max="100" value="50" oninput="manualSplit()">
+                </label>
+                <button onclick="autoSearch()" id="btnAutoSearch">🔍 Auto-Search</button>
+                <button onclick="generateSplitData()">New Data</button>
+            </div>
+
+            <canvas id="splitCanvas" width="800" height="200"></canvas>
+
+            <div class="split-metrics">
+                <div class="metric-card">
+                    <div>Left Child Impurity</div>
+                    <div id="leftImp" class="metric-val">0.00</div>
+                </div>
+                <div class="metric-card">
+                    <div>Right Child Impurity</div>
+                    <div id="rightImp" class="metric-val">0.00</div>
+                </div>
+                <div class="metric-card" style="border-color:var(--highlight);">
+                    <div>Weighted Cost</div>
+                    <div id="totalCost" class="metric-val">0.00</div>
+                </div>
+            </div>
+
+            <details>
+                <summary>Theory: Information Gain</summary>
+                <p>When building Decision Trees, we split data to reduce impurity. The algorithm calculates the <strong>Weighted Average Impurity</strong> of the children:</p>
+                <p>$$Cost = \frac{N_{left}}{N_{total}} \times I_{left} + \frac{N_{right}}{N_{total}} \times I_{right}$$</p>
+                <p>We choose the split that minimizes this cost (or maximizes Information Gain).</p>
+            </details>
+        </section>
+
+    </div>
+
+    <script>
+        // --- GLOBAL UTILS ---
+        function randomNormal(mean, std) {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // --- PANEL A: IMPURITY JAR ---
+        const jarCanvas = document.getElementById('jarCanvas');
+        const jarCtx = jarCanvas.getContext('2d');
+        const balls = [];
+        const TOTAL_BALLS = 100;
+
+        // Initialize Balls
+        for(let i=0; i<TOTAL_BALLS; i++) {
+            balls.push({
+                x: Math.random() * 260 + 20,
+                y: Math.random() * 260 + 20,
+                r: 6 + Math.random() * 4,
+                color: '#ddd'
+            });
+        }
+
+        function updateJar() {
+            const ratio = parseFloat(document.getElementById('ratioSlider').value);
+            const metric = document.getElementById('impurityMetric').value;
+            document.getElementById('ratioVal').innerText = ratio.toFixed(2);
+
+            // Update Ball Colors
+            const limit = Math.floor(TOTAL_BALLS * ratio);
+            balls.forEach((b, i) => {
+                b.color = (i < limit) ? getComputedStyle(document.documentElement).getPropertyValue('--class-a').trim() 
+                                      : getComputedStyle(document.documentElement).getPropertyValue('--class-b').trim();
+            });
+
+            // Draw Jar
+            jarCtx.clearRect(0,0,300,300);
+            
+            // Jar body
+            jarCtx.beginPath();
+            jarCtx.arc(150, 150, 140, 0, Math.PI*2);
+            jarCtx.strokeStyle = '#34495e';
+            jarCtx.lineWidth = 4;
+            jarCtx.stroke();
+            jarCtx.fillStyle = '#fdfdfd';
+            jarCtx.fill();
+
+            // Balls
+            balls.forEach(b => {
+                jarCtx.beginPath();
+                jarCtx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+                jarCtx.fillStyle = b.color;
+                jarCtx.fill();
+            });
+
+            // Calculate Metrics
+            const p = ratio; // Prob of Class A
+            const q = 1 - ratio; // Prob of Class B
+            let val = 0;
+            let formulaStr = "";
+            let maxVal = 1; // For thermometer scaling
+
+            if (metric === 'gini') {
+                // Gini = 1 - (p^2 + q^2)
+                val = 1 - (p*p + q*q);
+                formulaStr = `1 - (${p.toFixed(2)}² + ${q.toFixed(2)}²)`;
+                maxVal = 0.5;
+            } else {
+                // Entropy = - (p log2 p + q log2 q)
+                // Handle 0 log 0
+                const term1 = p === 0 ? 0 : p * Math.log2(p);
+                const term2 = q === 0 ? 0 : q * Math.log2(q);
+                val = -(term1 + term2);
+                formulaStr = `- (${p.toFixed(2)}·log₂${p.toFixed(2)} + ${q.toFixed(2)}·log₂${q.toFixed(2)})`;
+                maxVal = 1.0;
+            }
+
+            // Update UI
+            document.getElementById('formulaDisplay').innerText = `I = ${formulaStr}`;
+            document.getElementById('impurityValue').innerText = val.toFixed(4);
+
+            // Update Thermometer
+            const pct = (val / maxVal) * 100;
+            document.getElementById('thermometerFill').style.width = `${pct}%`;
+        }
+
+        // --- PANEL B: FEATURE RACE ---
+        const fisherContainer = document.getElementById('fisherContainer');
+        const STRIP_WIDTH = 600;
+        const STRIP_HEIGHT = 60;
+
+        function generateFisherData() {
+            fisherContainer.innerHTML = '';
+            
+            // 3 Features: Good, Bad, Noise
+            const features = [
+                { name: 'Feature X', muA: 30, muB: 80, sig: 10, label: 'High Separation' },
+                { name: 'Feature Y', muA: 40, muB: 60, sig: 15, label: 'Overlap' },
+                { name: 'Feature Z', muA: 50, muB: 50, sig: 25, label: 'Noise' }
+            ];
+
+            let maxScore = -1;
+            let winnerIndex = -1;
+
+            // Generate HTML & Data for each
+            features.forEach((feat, idx) => {
+                // Generate points
+                const ptsA = Array.from({length:30}, () => randomNormal(feat.muA, feat.sig));
+                const ptsB = Array.from({length:30}, () => randomNormal(feat.muB, feat.sig));
+                
+                // Calc Fisher
+                const meanA = ptsA.reduce((a,b)=>a+b,0)/ptsA.length;
+                const meanB = ptsB.reduce((a,b)=>a+b,0)/ptsB.length;
+                const varA = ptsA.reduce((a,b)=>a + (b-meanA)**2, 0) / ptsA.length;
+                const varB = ptsB.reduce((a,b)=>a + (b-meanB)**2, 0) / ptsB.length;
+                
+                const fisher = Math.pow(meanA - meanB, 2) / (varA + varB);
+                if(fisher > maxScore) { maxScore = fisher; winnerIndex = idx; }
+
+                // Create Elements
+                const row = document.createElement('div');
+                row.className = 'strip-row';
+
+                const label = document.createElement('div');
+                label.className = 'strip-label';
+                label.innerHTML = `${feat.name}<br><small style="color:#777">${feat.label}</small>`;
+
+                const cvsContainer = document.createElement('div');
+                cvsContainer.className = 'strip-canvas-container';
+                const cvs = document.createElement('canvas');
+                cvs.width = STRIP_WIDTH;
+                cvs.height = STRIP_HEIGHT;
+                cvsContainer.appendChild(cvs);
+
+                const barDiv = document.createElement('div');
+                barDiv.className = 'fisher-score-bar';
+                const fill = document.createElement('div');
+                fill.className = 'fisher-fill';
+                fill.id = `fisher-fill-${idx}`;
+                barDiv.appendChild(fill);
+                
+                const scoreTxt = document.createElement('span');
+                scoreTxt.style.marginLeft = "10px";
+                scoreTxt.innerText = `F: ${fisher.toFixed(2)}`;
+
+                const crown = document.createElement('span');
+                crown.className = 'winner-crown';
+                crown.id = `crown-${idx}`;
+                crown.innerHTML = '👑';
+
+                row.appendChild(label);
+                row.appendChild(cvsContainer);
+                row.appendChild(barDiv);
+                row.appendChild(scoreTxt);
+                row.appendChild(crown);
+                fisherContainer.appendChild(row);
+
+                // Draw
+                const ctx = cvs.getContext('2d');
+                ctx.clearRect(0,0,STRIP_WIDTH,STRIP_HEIGHT);
+                
+                // Draw Axis Line
+                ctx.beginPath();
+                ctx.moveTo(10, STRIP_HEIGHT/2);
+                ctx.lineTo(STRIP_WIDTH-10, STRIP_HEIGHT/2);
+                ctx.strokeStyle = '#ddd';
+                ctx.stroke();
+
+                // Draw Points
+                function drawPts(arr, color, yOffset) {
+                    ctx.fillStyle = color;
+                    arr.forEach(val => {
+                        const x = (val / 100) * (STRIP_WIDTH - 20) + 10;
+                        ctx.beginPath();
+                        ctx.arc(x, STRIP_HEIGHT/2 + yOffset, 4, 0, Math.PI*2);
+                        ctx.fill();
+                    });
+                }
+                drawPts(ptsA, '#3498db', -5); // Class A (Blue) slightly up
+                drawPts(ptsB, '#e67e22', 5);  // Class B (Orange) slightly down
+
+                // Animate Bar width after delay
+                setTimeout(() => {
+                    // Normalize width against a max constant or dynamic max
+                    let w = (fisher / 5.0) * 100; 
+                    if(w > 100) w = 100;
+                    document.getElementById(`fisher-fill-${idx}`).style.width = `${w}%`;
+                }, 100);
+            });
+
+            // Show Winner
+            setTimeout(() => {
+                document.getElementById(`crown-${winnerIndex}`).classList.add('show');
+            }, 600);
+        }
+
+        // --- PANEL C: SPLIT CHOOSER ---
+        let splitData = [];
+        const splitCanvas = document.getElementById('splitCanvas');
+        const splitCtx = splitCanvas.getContext('2d');
+        let isAnimating = false;
+
+        function generateSplitData() {
+            splitData = [];
+            // Create a mix
+            // Left Cluster (Class A dominant)
+            for(let i=0; i<20; i++) splitData.push({x: randomNormal(30, 10), class:'A'});
+            for(let i=0; i<5; i++) splitData.push({x: randomNormal(30, 10), class:'B'});
+            
+            // Right Cluster (Class B dominant)
+            for(let i=0; i<20; i++) splitData.push({x: randomNormal(70, 10), class:'B'});
+            for(let i=0; i<5; i++) splitData.push({x: randomNormal(70, 10), class:'A'});
+
+            // Clamp 0-100
+            splitData.forEach(d => {
+                if(d.x < 0) d.x = 0;
+                if(d.x > 100) d.x = 100;
+            });
+
+            manualSplit();
+        }
+
+        function drawSplitter(threshold) {
+            splitCtx.clearRect(0,0,800,200);
+
+            const scaleX = (val) => (val/100) * 760 + 20;
+
+            // Draw Threshold Line
+            const thX = scaleX(threshold);
+            splitCtx.beginPath();
+            splitCtx.moveTo(thX, 10);
+            splitCtx.lineTo(thX, 190);
+            splitCtx.strokeStyle = '#f1c40f'; // Highlight Gold
+            splitCtx.lineWidth = 3;
+            splitCtx.setLineDash([5, 5]);
+            splitCtx.stroke();
+            splitCtx.setLineDash([]);
+
+            // Draw Points
+            splitData.forEach(p => {
+                const px = scaleX(p.x);
+                const py = 100 + (Math.random() * 40 - 20); // Jitter Y
+                
+                splitCtx.beginPath();
+                splitCtx.arc(px, py, 5, 0, Math.PI*2);
+                splitCtx.fillStyle = p.class === 'A' ? '#3498db' : '#e67e22';
+                splitCtx.globalAlpha = 0.8;
+                splitCtx.fill();
+                splitCtx.globalAlpha = 1.0;
+                
+                // Outline if misclassified (assuming Left=A, Right=B)
+                // Left side should be A, Right side should be B
+                let isWrong = false;
+                if(p.x < threshold && p.class === 'B') isWrong = true;
+                if(p.x >= threshold && p.class === 'A') isWrong = true;
+
+                if(isWrong) {
+                    splitCtx.strokeStyle = '#c0392b';
+                    splitCtx.lineWidth = 2;
+                    splitCtx.stroke();
+                }
+            });
+
+            // Labels
+            splitCtx.fillStyle = '#333';
+            splitCtx.font = "14px Arial";
+            splitCtx.fillText("Predicted: A", thX - 90, 30);
+            splitCtx.fillText("Predicted: B", thX + 10, 30);
+        }
+
+        function calculateMetrics(threshold) {
+            const criterion = document.getElementById('splitCriterion').value;
+            
+            // Split Data
+            const left = splitData.filter(d => d.x < threshold);
+            const right = splitData.filter(d => d.x >= threshold);
+            const total = splitData.length;
+
+            function getImpurity(subset) {
+                if(subset.length === 0) return 0;
+                const countA = subset.filter(d => d.class === 'A').length;
+                const countB = subset.filter(d => d.class === 'B').length;
+                const p = countA / subset.length;
+                const q = countB / subset.length;
+
+                if(criterion === 'error') {
+                    return 1 - Math.max(p, q); // Misclassification Error
+                } else if (criterion === 'gini') {
+                    return 1 - (p*p + q*q);
+                } else { // Entropy
+                    const t1 = p===0?0:p*Math.log2(p);
+                    const t2 = q===0?0:q*Math.log2(q);
+                    return -(t1+t2);
+                }
+            }
+
+            const impL = getImpurity(left);
+            const impR = getImpurity(right);
+            
+            // Weighted Average Cost
+            const cost = (left.length/total)*impL + (right.length/total)*impR;
+
+            return { impL, impR, cost };
+        }
+
+        function updateSplitCalc() {
+            const th = parseFloat(document.getElementById('splitSlider').value);
+            const metrics = calculateMetrics(th);
+            
+            drawSplitter(th);
+
+            document.getElementById('leftImp').innerText = metrics.impL.toFixed(3);
+            document.getElementById('rightImp').innerText = metrics.impR.toFixed(3);
+            document.getElementById('totalCost').innerText = metrics.cost.toFixed(4);
+        }
+
+        function manualSplit() {
+            if(isAnimating) isAnimating = false; // Stop auto if user interacts
+            updateSplitCalc();
+        }
+
+        function autoSearch() {
+            if(isAnimating) return;
+            isAnimating = true;
+            const btn = document.getElementById('btnAutoSearch');
+            btn.innerText = "Searching...";
+            
+            let bestCost = Infinity;
+            let bestTh = 0;
+            let currentTh = 0;
+
+            function step() {
+                if(!isAnimating) {
+                    btn.innerText = "🔍 Auto-Search";
+                    return;
+                }
+
+                currentTh += 1; // Step by 1
+                if(currentTh > 100) {
+                    // Finished
+                    isAnimating = false;
+                    document.getElementById('splitSlider').value = bestTh;
+                    updateSplitCalc();
+                    btn.innerText = "🔍 Auto-Search";
+                    return;
+                }
+
+                const m = calculateMetrics(currentTh);
+                if(m.cost < bestCost) {
+                    bestCost = m.cost;
+                    bestTh = currentTh;
+                }
+
+                // Visual update every frame
+                document.getElementById('splitSlider').value = currentTh;
+                updateSplitCalc();
+                requestAnimationFrame(step);
+            }
+
+            step();
+        }
+
+        // Initialize
+        updateJar();
+        generateFisherData();
+        generateSplitData();
+
+    </script>
+</body>
+</html>

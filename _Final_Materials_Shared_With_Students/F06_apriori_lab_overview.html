@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apriori: The Pattern Hunter</title>
+    <style>
+        /* GLOBAL DESIGN SYSTEM (Matching your existing files) */
+        :root {
+            --primary: #2c3e50;      /* Deep Slate */
+            --accent: #2980b9;       /* Bright Blue */
+            --success: #27ae60;      /* Emerald Green */
+            --warning: #f1c40f;      /* Gold/Yellow */
+            --error: #c0392b;        /* Red */
+            --bg: #f8fafc;
+            --text: #333;
+            --panel-bg: #ffffff;
+            --item-bread: #e67e22;
+            --item-milk: #ecf0f1;
+            --item-diapers: #3498db;
+            --item-beer: #f1c40f;
+            --item-eggs: #9b59b6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* NAVIGATION HEADER */
+        header {
+            background: var(--primary);
+            padding: 15px;
+            width: 100%;
+            max-width: 1200px;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #bdc3c7;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover { color: white; background: rgba(255,255,255,0.2); }
+        .tab-btn.active { background: var(--warning); color: var(--primary); }
+
+        /* MAIN CONTAINER */
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-height: 600px;
+        }
+
+        /* VISUALIZATION STAGES */
+        .stage-container {
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.3s;
+        }
+        .stage-container.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        canvas {
+            background: #fff;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            width: 100%;
+            display: block;
+        }
+
+        /* CONTROLS AREA */
+        .controls {
+            background: #ecf0f1;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        button.action-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button.action-btn:hover { background: #1f618d; }
+        button.action-btn:disabled { background: #95a5a6; cursor: not-allowed; }
+
+        .stat-box {
+            font-family: monospace;
+            background: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+
+        /* NARRATIVE */
+        .narrative {
+            margin-top: 20px;
+            padding: 20px;
+            border-left: 5px solid var(--accent);
+            background: #eaf2f8;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        .narrative h3 { margin-top: 0; color: var(--accent); }
+
+        /* TOOLTIP / HOVER INFO */
+        .info-panel {
+            margin-top: 10px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div style="font-size: 1.2rem; font-weight: bold;">Market Basket Analysis</div>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('market')">1. The Market (Concept)</button>
+            <button class="tab-btn" onclick="switchTab('algo')">2. The Algorithm (Logic)</button>
+            <button class="tab-btn" onclick="switchTab('prefix')">3. Prefix Merging (Detail)</button>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <div id="tab-market" class="stage-container active">
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h2>Why do we hunt patterns?</h2>
+                <p>Simulate customer transactions to discover "Hidden Rules".</p>
+            </div>
+            
+            <canvas id="marketCanvas" height="400"></canvas>
+            
+            <div class="controls">
+                <button class="action-btn" onclick="marketSim.addRandomTransaction()">+ Add Customer</button>
+                <button class="action-btn" style="background:var(--success)" onclick="marketSim.runAnalysis()">Find Rules</button>
+                <div class="stat-box">Transactions: <span id="mkt-count">0</span></div>
+            </div>
+
+            <div class="narrative" id="mkt-narrative">
+                <h3>The Supermarket Floor</h3>
+                <p>Start by adding customers. Each customer buys a basket of items (Bread, Milk, Diapers, Beer, Eggs). <br>
+                Once you have enough data, click <strong>Find Rules</strong> to see the "Magic Links" appear between items.</p>
+            </div>
+        </div>
+
+        <div id="tab-algo" class="stage-container">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>Apriori Algorithm Walkthrough</h2>
+                <div class="stat-box">MinSupport: <span id="algo-minsup">2</span></div>
+            </div>
+            
+            <canvas id="algoCanvas" height="450"></canvas>
+
+            <div class="controls">
+                <button class="action-btn" id="btn-algo-prev" onclick="algoSim.step(-1)" disabled>Previous</button>
+                <div style="font-weight:bold; font-size:1.2rem; min-width:120px; text-align:center;" id="algo-step-display">Step 0</div>
+                <button class="action-btn" id="btn-algo-next" onclick="algoSim.step(1)">Next Step</button>
+            </div>
+
+            <div class="narrative" id="algo-narrative">
+                Loading...
+            </div>
+        </div>
+
+        <div id="tab-prefix" class="stage-container">
+            <div style="text-align: center;">
+                <h2>The Join Step: Prefix Matching</h2>
+                <p>How do we turn pairs (2-itemsets) into triplets (3-itemsets)?</p>
+            </div>
+
+            <canvas id="prefixCanvas" height="300"></canvas>
+
+            <div class="controls">
+                <button class="action-btn" onclick="prefixSim.generateNew()">New Example</button>
+            </div>
+
+            <div class="narrative">
+                <h3>The "Common Prefix" Rule</h3>
+                <p>To form a candidate of size <strong>k</strong>, we take two itemsets of size <strong>k-1</strong>. <br>
+                They must share the same first <strong>k-2</strong> items (The Prefix). We merge them and attach the differing last items.</p>
+                <ul>
+                    <li><strong>Example:</strong> {A, B} and {A, C} share prefix 'A'. Result: {A, B, C}.</li>
+                    <li><strong>Counter-Example:</strong> {A, B} and {D, E} have different prefixes. No merge.</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    // --- SHARED UTILS ---
+    const COLORS = {
+        bg: '#f8fafc',
+        primary: '#2c3e50',
+        accent: '#2980b9',
+        success: '#27ae60',
+        grey: '#bdc3c7',
+        items: {
+            'Bread': '#e67e22',
+            'Milk': '#ecf0f1', // Draw with border
+            'Diapers': '#3498db',
+            'Beer': '#f1c40f',
+            'Eggs': '#9b59b6'
+        }
+    };
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.stage-container').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+        // Find button that called this (hacky but works for simple demo)
+        const btns = document.querySelectorAll('.tab-btn');
+        if(tabName === 'market') btns[0].classList.add('active');
+        if(tabName === 'algo') btns[1].classList.add('active');
+        if(tabName === 'prefix') btns[2].classList.add('active');
+        
+        // Resize canvas trigger
+        if(tabName === 'market') marketSim.resize();
+        if(tabName === 'algo') algoSim.resize();
+        if(tabName === 'prefix') prefixSim.resize();
+    }
+
+    // --- 1. MARKET SIMULATION ---
+    const marketSim = {
+        canvas: document.getElementById('marketCanvas'),
+        ctx: document.getElementById('marketCanvas').getContext('2d'),
+        transactions: [],
+        items: ['Bread', 'Milk', 'Diapers', 'Beer', 'Eggs'],
+        rules: [],
+        
+        init() {
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+        },
+
+        resize() {
+            this.canvas.width = this.canvas.parentElement.clientWidth;
+            this.draw();
+        },
+
+        addRandomTransaction() {
+            const count = Math.floor(Math.random() * 3) + 2; // 2 to 4 items
+            // Bias: Make Diapers + Beer frequent together
+            const r = Math.random();
+            let basket = [];
+            
+            if (r < 0.4) {
+                // The "Dad Logic" basket
+                basket = ['Diapers', 'Beer', 'Milk'];
+            } else if (r < 0.7) {
+                // The "Breakfast" basket
+                basket = ['Bread', 'Milk', 'Eggs'];
+            } else {
+                // Random noise
+                const pool = [...this.items];
+                for(let i=0; i<count; i++) {
+                    const idx = Math.floor(Math.random() * pool.length);
+                    basket.push(pool[idx]);
+                    pool.splice(idx, 1);
+                }
+            }
+            
+            this.transactions.push({
+                id: this.transactions.length + 1,
+                items: basket,
+                x: 50 + (this.transactions.length % 5) * 120, // Grid layout
+                y: 50 + Math.floor(this.transactions.length / 5) * 100
+            });
+            
+            document.getElementById('mkt-count').innerText = this.transactions.length;
+            this.rules = []; // Reset rules if data changes
+            this.draw();
+        },
+
+        runAnalysis() {
+            // Hardcoded "Fake" analysis for visual metaphor
+            // We just want to show the link between Diapers and Beer if they exist
+            this.rules = [
+                { source: 'Diapers', target: 'Beer', strength: 'High' },
+                { source: 'Bread', target: 'Milk', strength: 'Med' }
+            ];
+            
+            const narrative = document.getElementById('mkt-narrative');
+            narrative.innerHTML = `<h3>Analysis Complete!</h3>
+            <p><strong>Rule Found:</strong> {Diapers} $\\rightarrow$ {Beer}<br>
+            <span style="color:${COLORS.success}">Why?</span> Because they appear together frequently.<br>
+            <strong>Action:</strong> Place Beer next to Diapers to increase sales!</p>`;
+            
+            this.draw();
+        },
+
+        draw() {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Transactions (Carts)
+            this.transactions.forEach(t => {
+                // Draw Basket
+                ctx.fillStyle = '#ecf0f1';
+                ctx.strokeStyle = '#95a5a6';
+                ctx.beginPath();
+                ctx.roundRect(t.x, t.y, 100, 80, 5);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw Items inside
+                t.items.forEach((item, i) => {
+                    ctx.fillStyle = COLORS.items[item] || '#333';
+                    ctx.beginPath();
+                    ctx.arc(t.x + 20 + (i%3)*30, t.y + 25 + Math.floor(i/3)*25, 10, 0, Math.PI*2);
+                    ctx.fill();
+                    
+                    // Tooltip-ish text
+                    ctx.fillStyle = '#555';
+                    ctx.font = '9px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(item.substring(0,2), t.x + 20 + (i%3)*30, t.y + 25 + Math.floor(i/3)*25 + 4);
+                });
+                
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(`T${t.id}`, t.x + 50, t.y - 5);
+            });
+
+            // Draw "Rules" (Glowing Lines)
+            if (this.rules.length > 0) {
+                // Find all baskets containing Rule items and connect them
+                this.rules.forEach(rule => {
+                    // Iterate through all transaction pairs to find instances
+                    // This is purely for visual effect, not the actual algorithm check
+                    this.transactions.forEach(t => {
+                        if (t.items.includes(rule.source) && t.items.includes(rule.target)) {
+                            // Draw a glow around this basket
+                            ctx.strokeStyle = COLORS.success;
+                            ctx.lineWidth = 3;
+                            ctx.strokeRect(t.x-2, t.y-2, 104, 84);
+                        }
+                    });
+                });
+                
+                // Draw Big Legend
+                ctx.fillStyle = COLORS.primary;
+                ctx.font = "16px Arial";
+                ctx.fillText("Strong Association Found: Diapers + Beer", 20, h - 20);
+            }
+        }
+    };
+
+
+    // --- 2. ALGO SIMULATION (APRIORI) ---
+    const algoSim = {
+        canvas: document.getElementById('algoCanvas'),
+        ctx: document.getElementById('algoCanvas').getContext('2d'),
+        stepIndex: 0,
+        minSup: 2,
+        
+        // Static Dataset for stability
+        db: [
+            { id: 'T1', items: ['A', 'C', 'D'] },
+            { id: 'T2', items: ['B', 'C', 'E'] },
+            { id: 'T3', items: ['A', 'B', 'C', 'E'] },
+            { id: 'T4', items: ['B', 'E'] }
+        ],
+        
+        // Algorithm State Snapshots
+        steps: [
+            {
+                title: "Step 0: Input Database",
+                desc: "We start with a Transaction Database. <br>MinSupport = 2. <br>We need to find itemsets that appear at least 2 times.",
+                drawMode: 'db_only'
+            },
+            {
+                title: "Step 1: Scan for L1 (Counting)",
+                desc: "We scan the DB to count every individual item (Candidate 1-itemset $C_1$).",
+                drawMode: 'count_c1',
+                counts: {A:2, B:3, C:3, D:1, E:3}
+            },
+            {
+                title: "Step 2: Pruning to find L1",
+                desc: "Filter items where count < MinSupport (2). <br><strong>D</strong> has count 1. It is removed (Pruned). <br>Result: Frequent 1-Itemset ($L_1$)",
+                drawMode: 'prune_l1',
+                l1: ['A', 'B', 'C', 'E'],
+                pruned: ['D']
+            },
+            {
+                title: "Step 3: Self-Join ($L_1 \\times L_1$) to get $C_2$",
+                desc: "Create all possible pairs from $L_1$. <br>This gives us Candidate 2-Itemsets ($C_2$).",
+                drawMode: 'join_c2',
+                c2: ['AB', 'AC', 'AE', 'BC', 'BE', 'CE']
+            },
+            {
+                title: "Step 4: Scan DB for $L_2$",
+                desc: "Go back to the database. Count how many times each pair appears together.",
+                drawMode: 'count_l2',
+                counts: {'AB':1, 'AC':2, 'AE':1, 'BC':2, 'BE':3, 'CE':2}
+            },
+            {
+                title: "Step 5: Pruning for $L_2$",
+                desc: "Remove pairs with count < 2. <br>{A,B} and {A,E} are pruned. <br>Remaining is $L_2$.",
+                drawMode: 'prune_l2',
+                l2: ['AC', 'BC', 'BE', 'CE'],
+                pruned: ['AB', 'AE']
+            },
+            {
+                title: "Step 6: Join ($L_2 \\times L_2$) for $C_3$",
+                desc: "Merge pairs that share a prefix. <br>{B,C} and {B,E} share 'B' -> Make {B,C,E}.",
+                drawMode: 'join_c3',
+                c3: ['BCE']
+            },
+            {
+                title: "Step 7: Final Scan",
+                desc: "Check count of {B,C,E} in DB. Count = 2. <br>It passes! This is our frequent 3-itemset.",
+                drawMode: 'final',
+                l3: ['BCE']
+            }
+        ],
+
+        init() {
+            this.resize();
+            this.update();
+        },
+        
+        resize() {
+            this.canvas.width = this.canvas.parentElement.clientWidth;
+            this.draw();
+        },
+
+        step(d) {
+            this.stepIndex += d;
+            if(this.stepIndex < 0) this.stepIndex = 0;
+            if(this.stepIndex >= this.steps.length) this.stepIndex = this.steps.length - 1;
+            this.update();
+        },
+
+        update() {
+            // Update Text
+            const s = this.steps[this.stepIndex];
+            document.getElementById('algo-step-display').innerText = `Step ${this.stepIndex}`;
+            document.getElementById('algo-narrative').innerHTML = `<h3>${s.title}</h3><p>${s.desc}</p>`;
+            document.getElementById('btn-algo-prev').disabled = this.stepIndex === 0;
+            document.getElementById('btn-algo-next').disabled = this.stepIndex === this.steps.length - 1;
+            
+            this.draw();
+        },
+
+        draw() {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            const s = this.steps[this.stepIndex];
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.font = "14px sans-serif";
+
+            // Draw DB on Left (Always visible)
+            this.drawDB(ctx, 20, 20);
+
+            // Draw "Algorithm State" on Right
+            const rightX = 250;
+            
+            if (s.drawMode === 'count_c1' || s.drawMode === 'prune_l1') {
+                this.drawList(ctx, s.counts || {'A':2,'B':3,'C':3,'D':1,'E':3}, rightX, 50, "Item Counts", s.pruned);
+            }
+            else if (s.drawMode === 'join_c2') {
+                this.drawMatrix(ctx, s.c2, rightX, 50, "Candidates C2");
+            }
+            else if (s.drawMode === 'count_l2' || s.drawMode === 'prune_l2') {
+                this.drawList(ctx, s.counts || {'AC':2, 'BC':2, 'BE':3, 'CE':2, 'AB':1, 'AE':1}, rightX, 50, "Pair Counts", s.pruned);
+            }
+            else if (s.drawMode === 'join_c3') {
+                this.drawMergeAnim(ctx, rightX, 100);
+            }
+            else if (s.drawMode === 'final') {
+                ctx.fillStyle = COLORS.success;
+                ctx.font = "bold 20px sans-serif";
+                ctx.fillText("Frequent Pattern Found:", rightX, 100);
+                ctx.fillText("{ B, C, E }", rightX, 140);
+            }
+        },
+
+        drawDB(ctx, x, y) {
+            ctx.fillStyle = COLORS.primary;
+            ctx.fillText("Transaction DB", x, y);
+            
+            this.db.forEach((t, i) => {
+                const dy = y + 30 + (i * 40);
+                ctx.fillStyle = '#ecf0f1';
+                ctx.fillRect(x, dy, 180, 30);
+                ctx.strokeStyle = '#bdc3c7';
+                ctx.strokeRect(x, dy, 180, 30);
+                
+                ctx.fillStyle = '#333';
+                ctx.fillText(`${t.id}: { ${t.items.join(', ')} }`, x + 10, dy + 20);
+            });
+        },
+
+        drawList(ctx, countsObj, x, y, title, prunedList = []) {
+            ctx.fillStyle = COLORS.primary;
+            ctx.fillText(title, x, y);
+            
+            let i = 0;
+            for (const [key, val] of Object.entries(countsObj)) {
+                const dy = y + 30 + (i * 35);
+                const isPruned = prunedList.includes(key);
+                
+                // Box
+                ctx.fillStyle = isPruned ? '#fadbd8' : '#d5f5e3'; // Red tint if pruned, Green if kept
+                if(!prunedList.length && !isPruned) ctx.fillStyle = '#fff'; // White if just counting
+                
+                ctx.fillRect(x, dy, 200, 30);
+                ctx.strokeStyle = '#bdc3c7';
+                ctx.strokeRect(x, dy, 200, 30);
+                
+                // Text
+                ctx.fillStyle = isPruned ? COLORS.error : '#333';
+                ctx.fillText(`{ ${key} } : ${val}`, x + 20, dy + 20);
+                
+                if(isPruned) {
+                    ctx.font = "bold 12px sans-serif";
+                    ctx.fillText("PRUNED (<2)", x + 120, dy + 20);
+                    ctx.font = "14px sans-serif";
+                }
+                i++;
+            }
+        },
+
+        drawMatrix(ctx, list, x, y, title) {
+            ctx.fillStyle = COLORS.primary;
+            ctx.fillText(title, x, y);
+            
+            // Draw visual representation of joins
+            list.forEach((item, i) => {
+                const col = i % 3;
+                const row = Math.floor(i / 3);
+                
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(x + col*70, y + 30 + row*40, 60, 30);
+                ctx.strokeStyle = COLORS.accent;
+                ctx.strokeRect(x + col*70, y + 30 + row*40, 60, 30);
+                
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.fillText(`{${item}}`, x + col*70 + 30, y + 30 + row*40 + 20);
+            });
+            ctx.textAlign = 'left';
+        },
+
+        drawMergeAnim(ctx, x, y) {
+            // Visualizing the prefix join specifically
+            // {B, C} + {B, E} -> {B, C, E}
+            
+            // Block 1
+            ctx.fillStyle = COLORS.accent;
+            ctx.fillRect(x, y, 40, 40); // Prefix B
+            ctx.fillStyle = '#fff';
+            ctx.fillText("B", x+15, y+25);
+            
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(x+45, y, 40, 40); // Suffix C
+            ctx.fillStyle = '#333';
+            ctx.fillText("C", x+60, y+25);
+            
+            ctx.fillText("+", x+100, y+25);
+
+            // Block 2
+            ctx.fillStyle = COLORS.accent;
+            ctx.fillRect(x+120, y, 40, 40); // Prefix B
+            ctx.fillStyle = '#fff';
+            ctx.fillText("B", x+135, y+25);
+            
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(x+165, y, 40, 40); // Suffix E
+            ctx.fillStyle = '#333';
+            ctx.fillText("E", x+180, y+25);
+            
+            // Arrow
+            ctx.fillStyle = '#333';
+            ctx.fillText("Merge (Prefix Match)", x + 50, y + 80);
+            ctx.font = "30px Arial";
+            ctx.fillText("↓", x + 110, y + 110);
+            ctx.font = "14px sans-serif";
+
+            // Result
+            ctx.fillStyle = COLORS.accent;
+            ctx.fillRect(x+80, y+130, 40, 40); // Prefix B
+            ctx.fillStyle = '#fff';
+            ctx.fillText("B", x+95, y+155);
+
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(x+125, y+130, 40, 40); // C
+            ctx.fillStyle = '#333';
+            ctx.fillText("C", x+140, y+155);
+
+            ctx.fillStyle = '#bdc3c7';
+            ctx.fillRect(x+170, y+130, 40, 40); // E
+            ctx.fillStyle = '#333';
+            ctx.fillText("E", x+185, y+155);
+        }
+    };
+
+
+    // --- 3. PREFIX SIMULATION (DETAIL) ---
+    const prefixSim = {
+        canvas: document.getElementById('prefixCanvas'),
+        ctx: document.getElementById('prefixCanvas').getContext('2d'),
+        pair1: ['A', 'B'],
+        pair2: ['A', 'C'],
+        isMatch: true,
+        
+        init() {
+            this.resize();
+        },
+
+        resize() {
+            this.canvas.width = this.canvas.parentElement.clientWidth;
+            this.draw();
+        },
+
+        generateNew() {
+            // Randomly create examples
+            const chars = ['A', 'B', 'C', 'D', 'E'];
+            const p1 = chars[Math.floor(Math.random()*chars.length)];
+            let s1 = chars[Math.floor(Math.random()*chars.length)];
+            while(s1 === p1) s1 = chars[Math.floor(Math.random()*chars.length)];
+            
+            // Decide if match
+            const match = Math.random() > 0.3;
+            this.isMatch = match;
+            
+            if (match) {
+                this.pair1 = [p1, s1];
+                let s2 = chars[Math.floor(Math.random()*chars.length)];
+                while(s2 === p1 || s2 === s1) s2 = chars[Math.floor(Math.random()*chars.length)];
+                this.pair2 = [p1, s2];
+            } else {
+                this.pair1 = [p1, s1];
+                let p2 = chars[Math.floor(Math.random()*chars.length)];
+                while(p2 === p1) p2 = chars[Math.floor(Math.random()*chars.length)];
+                this.pair2 = [p2, s1]; // Different prefix
+            }
+            
+            this.draw();
+        },
+
+        draw() {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            const cx = w/2;
+            
+            ctx.clearRect(0,0,w,h);
+            
+            // Draw Pair 1
+            this.drawBlock(ctx, cx - 150, 50, this.pair1[0], true);
+            this.drawBlock(ctx, cx - 100, 50, this.pair1[1], false);
+            
+            // Draw Pair 2
+            this.drawBlock(ctx, cx + 50, 50, this.pair2[0], true);
+            this.drawBlock(ctx, cx + 100, 50, this.pair2[1], false);
+            
+            // Check logic
+            ctx.font = "bold 24px Arial";
+            ctx.textAlign = "center";
+            
+            if (this.pair1[0] === this.pair2[0]) {
+                // Match
+                ctx.fillStyle = COLORS.success;
+                ctx.fillText("Prefix Match! (Merge)", cx, 150);
+                
+                // Result
+                this.drawBlock(ctx, cx - 75, 200, this.pair1[0], true); // Prefix
+                this.drawBlock(ctx, cx - 25, 200, this.pair1[1], false); // Suffix 1
+                this.drawBlock(ctx, cx + 25, 200, this.pair2[1], false); // Suffix 2
+                
+                // Connecting lines
+                ctx.strokeStyle = COLORS.success;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx - 125, 100); ctx.lineTo(cx, 130);
+                ctx.moveTo(cx + 75, 100); ctx.lineTo(cx, 130);
+                ctx.stroke();
+                
+            } else {
+                // No Match
+                ctx.fillStyle = COLORS.error;
+                ctx.fillText("Prefix Mismatch (Prune)", cx, 150);
+                
+                // Cross X
+                ctx.beginPath();
+                ctx.moveTo(cx-20, 180); ctx.lineTo(cx+20, 220);
+                ctx.moveTo(cx+20, 180); ctx.lineTo(cx-20, 220);
+                ctx.strokeStyle = COLORS.error;
+                ctx.lineWidth = 5;
+                ctx.stroke();
+            }
+        },
+
+        drawBlock(ctx, x, y, text, isPrefix) {
+            ctx.fillStyle = isPrefix ? COLORS.accent : '#ecf0f1';
+            ctx.fillRect(x, y, 48, 48);
+            ctx.strokeStyle = '#333';
+            ctx.strokeRect(x, y, 48, 48);
+            
+            ctx.fillStyle = isPrefix ? '#fff' : '#333';
+            ctx.font = "20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text, x + 24, y + 24);
+            
+            if(isPrefix) {
+                ctx.font = "10px Arial";
+                ctx.fillText("Pre", x + 24, y - 10);
+            }
+        }
+    };
+
+    // --- INITIALIZATION ---
+    marketSim.init();
+    algoSim.init();
+    prefixSim.init();
+
+</script>
+</body>
+</html>

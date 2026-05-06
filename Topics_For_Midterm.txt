@@ -1,0 +1,179 @@
+```json
+{
+  "basics": {
+    "name": "Md Ashik Miah",
+    "label": "Computer Science Student / Data Analyst / ML Engineer",
+    "email": "ashik3232himu@gmail.com",
+    "phone": "+8801954025884",
+    "location": {
+      "address": "Block #C, Banasree",
+      "city": "Dhaka",
+      "country": "Bangladesh"
+    },
+    "profiles": [
+      {
+        "network": "GitHub",
+        "username": "ConstantineAshik",
+        "url": "https://github.com/ConstantineAshik"
+      }
+    ],
+    "summary": "Final-year Computer Science student at East West University specializing in Intelligence Systems and Data Science. Proven ability to deliver complex machine learning projects, demonstrated by authoring and presenting research at international conferences (CIIR 2025, ICCIT 2025). Seeking an entry-level internship or full-time Data Analyst/ML Engineer role to apply skills in Python, TensorFlow, and Scikit-learn."
+  },
+  "education": [
+    {
+      "institution": "East West University",
+      "location": "Dhaka",
+      "studyType": "Bachelor of Science",
+      "area": "Computer Science and Engineering",
+      "major": "Intelligence Systems and Data Science",
+      "score": "2.72 / 4.00",
+      "courses": [
+        "Structured and Object-Oriented Programming",
+        "Data Structures and Algorithms",
+        "Database Systems",
+        "Artificial Intelligence",
+        "Machine Learning",
+        "Data Mining",
+        "Deep Learning",
+        "Computer Networks",
+        "IT Project Management & Entrepreneurship",
+        "Computer Vision",
+        "Web Development"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "level": "Proficient",
+      "keywords": [
+        "Python",
+        "Java",
+        "SQL",
+        "Pandas",
+        "NumPy",
+        "Scikit-learn",
+        "TensorFlow",
+        "Keras",
+        "Git/GitHub"
+      ]
+    },
+    {
+      "level": "Familiar",
+      "keywords": [
+        "C++",
+        "PHP",
+        "PyTorch",
+        "OpenCV",
+        "Grad-CAM",
+        "Firebase",
+        "HTML/CSS",
+        "JavaScript"
+      ]
+    },
+    {
+      "name": "Tools & IDEs",
+      "keywords": [
+        "Git",
+        "GitHub",
+        "VS Code",
+        "Android Studio",
+        "Docker",
+        "Linux",
+        "Jupyter Notebook"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Bangla",
+      "fluency": "Native"
+    },
+    {
+      "language": "English",
+      "fluency": "Fluent"
+    },
+    {
+      "language": "Urdu/Hindi",
+      "fluency": "Fluent"
+    }
+  ],
+  "research_and_publications": [
+    {
+      "title": "E-commerce Conversion Rates and Customer Satisfaction through Neural Collaborative Filtering Recommendations",
+      "type": "Research Project",
+      "conference": "CIIR 2025",
+      "status": "Presented",
+      "technologies": [
+        "Python",
+        "TensorFlow",
+        "Keras",
+        "Pandas",
+        "Scikit-learn"
+      ],
+      "summary": "Developed and presented a novel recommendation model to enhance e-commerce conversion rates. Implemented a Neural Collaborative Filtering algorithm in TensorFlow/Keras to generate personalized product suggestions based on user behavior data.",
+      "certificate_url": "https://drive.google.com/file/d/1UcUEPir7t3wg4ZYeQkNTW_zY6mLcHiLk/view?usp=sharing"
+    },
+    {
+      "title": "GuavaNet-XAI: A CNN-Based Framework for Accurate and Interpretable Diagnosis of Guava Diseases",
+      "conference": "28th International Conference on Computer and Information Technology (ICCIT 2025)",
+      "paper_id": "2121",
+      "track": "ICCITconf2025",
+      "status": "Under Review",
+      "technologies": [
+        "Python",
+        "TensorFlow",
+        "Keras",
+        "Pandas",
+        "Scikit-learn",
+        "Grad-CAM"
+      ],
+      "summary": "Evaluated multiple deep learning architectures (DenseNet-201, EfficientNetV2, ResNeXt) for classifying guava diseases. Selected DenseNet-201 achieving 98% accuracy on a balanced dataset. Utilized Grad-CAM (Explainable AI) to interpret model decisions."
+    }
+  ],
+  "projects": [
+    {
+      "name": "Online Voting System",
+      "type": "Academic Project",
+      "technologies": [
+        "PHP",
+        "JavaScript",
+        "HTML",
+        "CSS",
+        "MySQL"
+      ],
+      "description": "Developed a secure web-based platform for conducting online elections. Implemented features for user registration, authentication, ballot casting, and real-time result tabulation. Ensured data integrity and prevented multiple votes through backend validation and database management."
+    },
+    {
+      "name": "IoT-based Air Quality Monitoring System",
+      "type": "Academic Project",
+      "technologies": [
+        "Python",
+        "Scikit-learn",
+        "TensorFlow (Keras)",
+        "Pandas"
+      ],
+      "description": "Trained and evaluated multiple ML models (Random Forest, LSTM) to predict pollutant levels (PM2.5, PM10) from sensor data. Identified Random Forest as the optimal model, achieving 99.27% accuracy on a validated test set and using learning curves to prevent overfitting."
+    }
+  ],
+  "leadership_and_extracurricular": [
+    {
+      "organization": "EWU Robotics Club (EWURC)",
+      "role": "General Secretary",
+      "period": "2023 – 2024",
+      "achievements": [
+        "Successfully Organized EWU National Robofest",
+        "Trained and mentored 50+ junior members in 'Kickstart to Robotics 2.0 & 3.0' workshops",
+        "Organized Robotics Segment for EWU CSE FEST 2024"
+      ]
+    },
+    {
+      "organization": "EWU Robotics Club (EWURC)",
+      "role": "Volunteer Coordinator",
+      "period": "2022 – 2023",
+      "achievements": [
+        "Recruited, trained, and managed a corps of 100+ volunteers for club activities"
+      ]
+    }
+  ]
+}
+```

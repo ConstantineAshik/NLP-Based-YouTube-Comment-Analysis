@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>K-Means Stepper - Iter 3 (Next Round: A=Row 5, B=Row 4)</title>
+  <style>
+    :root{
+      --page-w: 794px;
+      --page-h: 1123px;
+      --page-pad: 24px;
+      --circle-bg: #f8fafc;
+      --circle-border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --col-gap: 16px;
+      --centroid-a: #f59e0b;
+      --centroid-b: #ef4444;
+      --highlight-a: rgba(245,158,11,0.22);
+      --highlight-b: rgba(239,68,68,0.22);
+      --fade: 260ms;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color:var(--text);
+      background:#f1f5f9;
+      display:flex; justify-content:center; padding:24px;
+    }
+    .page{
+      width:min(100%, var(--page-w));
+      height:var(--page-h);
+      background:white; border:1px solid #e2e8f0; border-radius:16px;
+      box-shadow:0 10px 30px rgba(2,6,23,.08);
+      padding:var(--page-pad);
+      display:grid; grid-template-columns: 1fr 1fr 1fr; gap:var(--col-gap);
+      position:relative;
+    }
+    .overlay{ position:absolute; inset:0; pointer-events:none; z-index:8; }
+    .overlay svg{ width:100%; height:100%; }
+    .edge{ stroke:#0f172a; stroke-width:5; stroke-linecap:round; opacity:0; transition:opacity var(--fade) ease-in; stroke-opacity:.55; }
+    .edge.a{ stroke: var(--centroid-a); }
+    .edge.b{ stroke: var(--centroid-b); }
+    .edge.visible{ opacity:1; }
+
+    .col{ border-radius:12px; min-height:0; position:relative; overflow:hidden; z-index:1; }
+    .col.left{ display:flex; flex-direction:column; justify-content:space-between; align-items:center; padding:8px; }
+    .col.mid{ display:grid; grid-template-rows:1fr 1fr; gap:12px; padding:4px; overflow:hidden; }
+    .col.right{ background:#fff; }
+
+    .centroids-wrapper{ position:absolute; inset:0; }
+    .node{ width:clamp(110px, 12vh, 160px); aspect-ratio:1/1; border-radius:9999px;
+      background: radial-gradient(circle at 30% 30%, #fff 0%, var(--circle-bg) 70%);
+      border:1px solid var(--circle-border);
+      display:flex; align-items:center; justify-content:center; padding:8px; overflow:hidden;
+      box-shadow:0 2px 8px rgba(2,6,23,.05);
+    }
+    .node.centroid{ border-width:6px; background: radial-gradient(circle at 30% 30%, #fff 0%, #fff 55%, var(--circle-bg) 100%); }
+    .node.centroid-a{ border-color:var(--centroid-a); box-shadow:0 4px 14px rgba(245,158,11,.25); position:absolute; left:50%; transform:translateX(-50%); top:35%; }
+    .node.centroid-b{ border-color:var(--centroid-b); box-shadow:0 4px 14px rgba(239,68,68,.25); position:absolute; left:50%; transform:translateX(-50%); top:65%; }
+
+    .node-inner{ width:90%; height:90%; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:2px; overflow:hidden; }
+    .node-title{ font-weight:900; font-size:clamp(.95rem, 2.4vh, 1.15rem); text-transform:uppercase; letter-spacing:.05em; line-height:1.1; text-align:center; margin:0; }
+    .kv{ list-style:none; padding:0; margin:2px 0 0 0; width:100%; max-height:40vh; overflow:auto; scrollbar-width:thin; }
+    .kv li{ display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:start; font-size:clamp(10px, 1.6vw, 13px); line-height:1.3; padding:1px 0; border-bottom:1px dashed #e5e7eb; }
+    .kv li:last-child{ border-bottom:none; }
+    .k{ font-weight:600; color:#334155; word-break:break-word; }
+    .v{ color:#0f172a; word-break:break-word; }
+
+    .table-block{ border:1px solid #e2e8f0; border-radius:12px; background:#fff; padding:10px; display:flex; flex-direction:column; min-height:0; box-shadow:0 2px 10px rgba(2,6,23,.05); overflow:auto; }
+    .tbl-title{ font-weight:800; font-size:.95rem; margin-bottom:2px; }
+    .tbl-subtitle{ color:#64748b; font-size:.75rem; margin-bottom:8px; }
+    table.dist{ border-collapse:collapse; width:100%; table-layout:fixed; font-size:.85rem; }
+    table.dist th, table.dist td{ border-bottom:1px solid #e5e7eb; padding:6px 8px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    table.dist thead th{ position:sticky; top:0; background:#f8fafc; z-index:1; font-weight:700; }
+    table.dist tbody tr:nth-child(even) td{ background:#fcfdff; }
+
+    col.row{ width:14%; } col.scaled{ width:22%; } col.hamming{ width:14%; } col.combined{ width:50%; }
+
+    td.reveal{ background:white !important; color:transparent; }
+    td.reveal.show{ color:inherit; transition: background-color var(--fade) ease, color var(--fade) ease; }
+
+    .controls{
+      position:absolute; left:50%; transform:translateX(-50%);
+      top:8px; display:flex; gap:8px; z-index:10;
+      background:#ffffffcc; padding:6px 10px; border-radius:9999px; border:1px solid #e2e8f0; backdrop-filter: blur(6px);
+    }
+    .btn{ appearance:none; border:1px solid #cbd5e1; background:white; padding:6px 10px; border-radius:9999px; font-weight:600; font-size:.85rem; cursor:pointer; }
+    .btn:hover{ background:#f8fafc; }
+    .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+    @media (max-width: 820px){
+      .page{ grid-template-columns:1fr; }
+      .col.mid, .col.right{ display:none; }
+      .col.left{ justify-content:flex-start; gap:10px; }
+      .controls{ position:fixed; top:10px; }
+    }
+
+    /* comparison highlight additions (unchanged) */
+    .edge.tie{ stroke-dasharray: 8 8; }
+    td.win{ font-weight:800; }
+    td.win[data-centroid="A"]{ background: var(--highlight-a) !important; }
+    td.win[data-centroid="B"]{ background: var(--highlight-b) !important; }
+    td.lose{ opacity:.65; }
+    td.tie{ background: rgba(2,6,23,0.06) !important; font-weight:800; }
+    .considering{ outline:2px dashed #94a3b8; outline-offset:-2px; }
+
+    .cluster-summary{
+      position:absolute; left:50%; transform:translateX(-50%);
+      display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+      width:90%; z-index:6; opacity:0; transition:opacity var(--fade) ease;
+    }
+    .cluster-summary.visible{ opacity:1; }
+    #summaryA{ top:10%; }
+    #summaryB{ bottom:8%; }
+    .badge{ font-weight:900; font-size:1.15rem; letter-spacing:.02em;
+      padding:6px 10px; border-radius:9999px; border:2px solid currentColor; background:#fff; }
+    .badge.a{ color:var(--centroid-a); }
+    .badge.b{ color:var(--centroid-b); }
+
+    /* recenter step */
+    .badge.median { transform: scale(1.25); box-shadow: 0 6px 18px rgba(15,23,42,.18); }
+    .node.is-median { transform: scale(1.08); outline: 4px solid currentColor; outline-offset: -6px; }
+    .recenter-note{
+      position:absolute; left:50%; transform:translateX(-50%); top:4%;
+      font-size:.82rem; color:#475569; background:#ffffffcc; border:1px solid #e2e8f0;
+      padding:4px 8px; border-radius:8px; z-index:7;
+    }
+  </style>
+</head>
+<body>
+  <main class="page" id="page">
+    <div class="controls">
+      <button class="btn" id="prev">Prev</button>
+      <button class="btn" id="step">Step</button>
+      <button class="btn" id="auto">Auto</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+
+    <div class="overlay"><svg id="overlaySvg"></svg></div>
+
+    <!-- LEFT COLUMN: seven data circles (unchanged) -->
+    <section class="col left" id="leftCol">
+      <div class="node" data-row="1">
+        <div class="node-inner">
+          <div class="node-title">ROW 1</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_honda</span></li><li><span class='k'>brand</span><span class='v'>Pro Honda</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SL</span></li><li><span class='k'>jaso</span><span class='v'>MA</span></li><li><span class='k'>base</span><span class='v'>Fully_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>India</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>Yes</span></li><li><span class='k'>qrcode_present</span><span class='v'>No</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="node" data-row="2">
+        <div class="node-inner">
+          <div class="node-title">ROW 2</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_shell</span></li><li><span class='k'>brand</span><span class='v'>Shell Advance Fuel Save</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Fully_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>Thiland</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>Yes</span></li><li><span class='k'>qrcode_present</span><span class='v'>Yes</span></li><li><span class='k'>scratchcode_present</span><span class='v'>Yes</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="node" data-row="3">
+        <div class="node-inner">
+          <div class="node-title">ROW 3</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_ams_oil</span></li><li><span class='k'>brand</span><span class='v'>AMS OIL</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>40</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>100%_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>946</span></li><li><span class='k'>country</span><span class='v'>USA</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>Yes</span></li><li><span class='k'>qrcode_present</span><span class='v'>No</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="node" data-row="4">
+        <div class="node-inner">
+          <div class="node-title">ROW 4</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_liqui_moly</span></li><li><span class='k'>brand</span><span class='v'>LIQUI MOLY STREET</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Semi_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>Germany</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>Yes</span></li><li><span class='k'>qrcode_present</span><span class='v'>Yes</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="node" data-row="5">
+        <div class="node-inner">
+          <div class="node-title">ROW 5</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_idemitsu</span></li><li><span class='k'>brand</span><span class='v'>idemitsu</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Fully_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>India</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>No</span></li><li><span class='k'>qrcode_present</span><span class='v'>No</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="node" data-row="6">
+        <div class="node-inner">
+          <div class="node-title">ROW 6</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_ravenol</span></li><li><span class='k'>brand</span><span class='v'>RAVENOL</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Semi_Synthetic_+_ESTER</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>Germany</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>Yes</span></li><li><span class='k'>qrcode_present</span><span class='v'>Yes</span></li><li><span class='k'>scratchcode_present</span><span class='v'>Yes</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="node" data-row="7">
+        <div class="node-inner">
+          <div class="node-title">ROW 7</div>
+          <ul class="kv">
+            <li><span class='k'>id</span><span class='v'>eobi_mobil_super_moto</span></li><li><span class='k'>brand</span><span class='v'>Mobil Super Moto</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SL</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Premium Mineral</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>Bangladesh</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>No</span></li><li><span class='k'>qrcode_present</span><span class='v'>Yes</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- MIDDLE COLUMN: updated distances for A=Row5, B=Row4 -->
+    <section class="col mid">
+      <div class="table-block" id="tableA">
+        <div class="tbl-title">Combined Distance to Centroid A (Scaled Numeric + Hamming)</div>
+        <div class="tbl-subtitle">Centroid A = Row 5 • Metric = sqrt( SIGMA(z-diff^2) + Hamming )</div>
+        <table class="dist">
+          <colgroup><col class="row"><col class="scaled"><col class="hamming"><col class="combined"></colgroup>
+          <thead><tr><th>Row</th><th>Scaled Num (Euclid)</th><th>Hamming</th><th>Combined</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>0.00</td><td>3</td><td class='reveal' data-val='1.732' data-centroid='A'></td></tr>
+            <tr><td>R2</td><td>0.00</td><td>4</td><td class='reveal' data-val='2.000' data-centroid='A'></td></tr>
+            <tr><td>R3</td><td>4.04</td><td>3</td><td class='reveal' data-val='4.397' data-centroid='A'></td></tr>
+            <tr><td>R4</td><td>0.00</td><td>4</td><td class='reveal' data-val='2.000' data-centroid='A'></td></tr>
+            <tr><td>R5</td><td>0.00</td><td>0</td><td class='reveal' data-val='0.000' data-centroid='A'></td></tr>
+            <tr><td>R6</td><td>0.00</td><td>5</td><td class='reveal' data-val='2.236' data-centroid='A'></td></tr>
+            <tr><td>R7</td><td>0.00</td><td>4</td><td class='reveal' data-val='2.000' data-centroid='A'></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-block" id="tableB">
+        <div class="tbl-title">Combined Distance to Centroid B (Scaled Numeric + Hamming)</div>
+        <div class="tbl-subtitle">Centroid B = Row 4 • Metric = sqrt( SIGMA(z-diff^2) + Hamming )</div>
+        <table class="dist">
+          <colgroup><col class="row"><col class="scaled"><col class="hamming"><col class="combined"></colgroup>
+          <thead><tr><th>Row</th><th>Scaled Num (Euclid)</th><th>Hamming</th><th>Combined</th></tr></thead>
+          <tbody>
+            <tr><td>R1</td><td>0.00</td><td>5</td><td class='reveal' data-val='2.236' data-centroid='B'></td></tr>
+            <tr><td>R2</td><td>0.00</td><td>3</td><td class='reveal' data-val='1.732' data-centroid='B'></td></tr>
+            <tr><td>R3</td><td>4.04</td><td>3</td><td class='reveal' data-val='4.397' data-centroid='B'></td></tr>
+            <tr><td>R4</td><td>0.00</td><td>0</td><td class='reveal' data-val='0.000' data-centroid='B'></td></tr>
+            <tr><td>R5</td><td>0.00</td><td>4</td><td class='reveal' data-val='2.000' data-centroid='B'></td></tr>
+            <tr><td>R6</td><td>0.00</td><td>2</td><td class='reveal' data-val='1.414' data-centroid='B'></td></tr>
+            <tr><td>R7</td><td>0.00</td><td>4</td><td class='reveal' data-val='2.000' data-centroid='B'></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: centroid cards now start at Row 5 and Row 4 -->
+    <section class="col right">
+      <div class="centroids-wrapper">
+        <div class="node centroid centroid-a" id="centroidA">
+          <div class="node-inner">
+            <div class="node-title">Centroid A</div>
+            <div class="node-subtitle">(from Row 5)</div>
+            <ul class="kv" id="centroidAFields">
+              <li><span class='k'>id</span><span class='v'>eobi_idemitsu</span></li><li><span class='k'>brand</span><span class='v'>idemitsu</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Fully_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>India</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>No</span></li><li><span class='k'>qrcode_present</span><span class='v'>No</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="node centroid centroid-b" id="centroidB">
+          <div class="node-inner">
+            <div class="node-title">Centroid B</div>
+            <div class="node-subtitle">(from Row 4)</div>
+            <ul class="kv" id="centroidBFields">
+              <li><span class='k'>id</span><span class='v'>eobi_liqui_moly</span></li><li><span class='k'>brand</span><span class='v'>LIQUI MOLY STREET</span></li><li><span class='k'>visc_w</span><span class='v'>10</span></li><li><span class='k'>visc_hot</span><span class='v'>30</span></li><li><span class='k'>api_X</span><span class='v'>API SN</span></li><li><span class='k'>jaso</span><span class='v'>MA2</span></li><li><span class='k'>base</span><span class='v'>Semi_Synthetic</span></li><li><span class='k'>vol_ml</span><span class='v'>1000</span></li><li><span class='k'>country</span><span class='v'>Germany</span></li><li><span class='k'>container</span><span class='v'>HDPE</span></li><li><span class='k'>barcode_present</span><span class='v'>Yes</span></li><li><span class='k'>qrcode_present</span><span class='v'>Yes</span></li><li><span class='k'>scratchcode_present</span><span class='v'>No</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="summaryA" class="cluster-summary"></div>
+        <div id="summaryB" class="cluster-summary"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function(){
+    const stepBtn = document.getElementById('step');
+    const prevBtn = document.getElementById('prev');
+    const autoBtn = document.getElementById('auto');
+    const resetBtn = document.getElementById('reset');
+    const overlaySvg = document.getElementById('overlaySvg');
+    const leftCol = document.getElementById('leftCol');
+    const centroidA = document.getElementById('centroidA');
+    const centroidB = document.getElementById('centroidB');
+    const summaryA = document.getElementById('summaryA');
+    const summaryB = document.getElementById('summaryB');
+
+    // Only the 'Combined' cells (unchanged logic)
+    const cellsA = Array.from(document.querySelectorAll('#tableA td.reveal'));
+    const cellsB = Array.from(document.querySelectorAll('#tableB td.reveal'));
+    const N = Math.min(cellsA.length, cellsB.length);
+
+    function clearEdges(){ while(overlaySvg.firstChild) overlaySvg.removeChild(overlaySvg.firstChild); }
+    function pageCoords(el){
+      const r = el.getBoundingClientRect();
+      const host = document.getElementById('page').getBoundingClientRect();
+      return { x: r.left - host.left + r.width/2, y: r.top - host.top + r.height/2 };
+    }
+    function drawEdge(rowNum, centroid, isTie=false){
+      const dataNode = leftCol.querySelector(`.node[data-row="${rowNum}"]`);
+      const ctr = centroid==='A' ? centroidA : centroidB;
+      if(!dataNode || !ctr) return;
+      const p1 = pageCoords(dataNode); const p2 = pageCoords(ctr);
+      const midX = (p1.x + p2.x)/2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', `M ${p1.x} ${p1.y} C ${midX} ${p1.y}, ${midX} ${p2.y}, ${p2.x} ${p2.y}`);
+      path.setAttribute('class', `edge ${centroid.toLowerCase()} ${isTie ? 'tie' : ''}`);
+      overlaySvg.appendChild(path);
+      requestAnimationFrame(()=> path.classList.add('visible'));
+    }
+
+    function setTextIfEmpty(td){ if(!td.textContent || td.textContent.trim()===''){ td.textContent = td.dataset.val; } td.classList.add('show'); }
+    function resetCellClasses(td){ td.classList.remove('win','lose','tie','considering','show'); }
+
+    // Compute winners (tie -> A), then support summary and recenter steps
+    const winners = [];
+    for(let r=0;r<N;r++){
+      const va = parseFloat(cellsA[r].dataset.val);
+      const vb = parseFloat(cellsB[r].dataset.val);
+      winners.push( (va<vb) ? 'A' : (vb<va) ? 'B' : 'A' );
+    }
+    function membersOf(C){ const out=[]; for(let r=0;r<N;r++){ if(winners[r]===C) out.push(r+1); } return out; }
+
+    // state
+    let rowIdx = -1;
+    let onSummary = false;
+    let onRecenter = false;
+    let autoTimer = null;
+
+    function setButtons(){
+      prevBtn.disabled = (rowIdx<=-1 && !onSummary && !onRecenter);
+      stepBtn.disabled = onRecenter;
+    }
+
+    function compareRow(r){
+      const a = cellsA[r], b = cellsB[r];
+      setTextIfEmpty(a); setTextIfEmpty(b);
+      a.classList.add('considering'); b.classList.add('considering');
+
+      const va = Math.round(parseFloat(a.dataset.val)*1000)/1000;
+      const vb = Math.round(parseFloat(b.dataset.val)*1000)/1000;
+      ['win','lose','tie'].forEach(c=>{ a.classList.remove(c); b.classList.remove(c); });
+
+      clearEdges();
+      if (va < vb){ a.classList.add('win'); b.classList.add('lose'); drawEdge(r+1, 'A'); }
+      else if (vb < va){ b.classList.add('win'); a.classList.add('lose'); drawEdge(r+1, 'B'); }
+      else { a.classList.add('tie'); b.classList.add('tie'); drawEdge(r+1, 'A', true); drawEdge(r+1, 'B', true); }
+
+      setTimeout(()=>{ a.classList.remove('considering'); b.classList.remove('considering'); }, 220);
+    }
+    function uncompareRow(r){ const a=cellsA[r], b=cellsB[r]; a.textContent=''; b.textContent=''; resetCellClasses(a); resetCellClasses(b); }
+
+    function renderSummary(){
+      clearEdges(); summaryA.innerHTML=''; summaryB.innerHTML='';
+      for(const r of membersOf('A')){ const s=document.createElement('span'); s.className='badge a'; s.textContent='R'+r; summaryA.appendChild(s); }
+      for(const r of membersOf('B')){ const s=document.createElement('span'); s.className='badge b'; s.textContent='R'+r; summaryB.appendChild(s); }
+      summaryA.classList.add('visible'); summaryB.classList.add('visible');
+    }
+    function clearSummary(){ summaryA.classList.remove('visible'); summaryB.classList.remove('visible'); summaryA.innerHTML=''; summaryB.innerHTML=''; }
+    function showSummary(){ onSummary = true; renderSummary(); setButtons(); }
+
+    // recenter = median-by-rank within cluster
+    function sortWithinCluster(C){
+      const rows = membersOf(C);
+      const arr = rows.map(r => { const td = (C==='A' ? cellsA[r-1] : cellsB[r-1]); return {row:r, d: parseFloat(td.dataset.val)}; });
+      arr.sort((u,v) => u.d - v.d); return arr;
+    }
+    function medianIndex(len){ return Math.floor((len-1)/2); }
+    function renderRecenter(){
+      clearEdges(); summaryA.innerHTML=''; summaryB.innerHTML='';
+      const aSorted = sortWithinCluster('A'); const bSorted = sortWithinCluster('B');
+      const aMedIdx = medianIndex(aSorted.length); const bMedIdx = medianIndex(bSorted.length);
+
+      aSorted.forEach((t,i)=>{ const s=document.createElement('span'); s.className='badge a'+(i===aMedIdx?' median':''); s.textContent='R'+t.row; summaryA.appendChild(s); });
+      bSorted.forEach((t,i)=>{ const s=document.createElement('span'); s.className='badge b'+(i===bMedIdx?' median':''); s.textContent='R'+t.row; summaryB.appendChild(s); });
+
+      summaryA.classList.add('visible'); summaryB.classList.add('visible');
+
+      leftCol.querySelectorAll('.node').forEach(n => n.classList.remove('is-median'));
+      const aMedRow = aSorted[aMedIdx].row; const bMedRow = bSorted[bMedIdx].row;
+      const aNode = leftCol.querySelector(`.node[data-row="${aMedRow}"]`);
+      const bNode = leftCol.querySelector(`.node[data-row="${bMedRow}"]`);
+      if(aNode){ aNode.classList.add('is-median'); aNode.style.setProperty('color','var(--centroid-a)'); }
+      if(bNode){ bNode.classList.add('is-median'); bNode.style.setProperty('color','var(--centroid-b)'); }
+
+      // update centroid subtitles to "(new from Row X)"
+      const aSub = centroidA.querySelector('.node-subtitle'); const bSub = centroidB.querySelector('.node-subtitle');
+      aSub.textContent = `(new from Row ${aMedRow})`;
+      bSub.textContent = `(new from Row ${bMedRow})`;
+    }
+    function clearRecenter(){ onRecenter = false; leftCol.querySelectorAll('.node').forEach(n => { n.classList.remove('is-median'); n.style.removeProperty('color'); }); renderSummary(); }
+    function showRecenter(){ onRecenter = true; renderRecenter(); setButtons(); }
+
+    function step(){
+      if(onRecenter) return;
+      if(onSummary){ showRecenter(); return; }
+      if(rowIdx < N-1){
+        rowIdx++; compareRow(rowIdx); setButtons();
+        if(rowIdx === N-1){ stepBtn.onclick = () => { showSummary(); }; }
+      }
+    }
+    function prev(){
+      if(onRecenter){ clearRecenter(); onRecenter=false; onSummary=true; stepBtn.onclick=()=>{ showRecenter(); }; setButtons(); return; }
+      if(onSummary){ onSummary=false; clearSummary(); stepBtn.onclick=step; setButtons(); return; }
+      if(rowIdx>=0){ uncompareRow(rowIdx); clearEdges(); rowIdx--; stepBtn.onclick=step; setButtons(); }
+    }
+    function reset(){
+      clearEdges(); clearSummary();
+      leftCol.querySelectorAll('.node').forEach(n => { n.classList.remove('is-median'); n.style.removeProperty('color'); });
+      for(let i=0;i<N;i++) uncompareRow(i);
+      rowIdx=-1; onSummary=false; onRecenter=false; stepBtn.onclick=step; setButtons();
+    }
+    function auto(){
+      if(autoTimer){ clearInterval(autoTimer); autoTimer=null; autoBtn.textContent='Auto'; return; }
+      autoBtn.textContent='Stop';
+      autoTimer = setInterval(()=>{
+        if(onRecenter){ clearInterval(autoTimer); autoTimer=null; autoBtn.textContent='Auto'; return; }
+        if(onSummary){ showRecenter(); return; }
+        if(rowIdx < N-1){ step(); }
+        else { showSummary(); }
+      }, 600);
+    }
+
+    // Bind + init
+    stepBtn.onclick = step;
+    prevBtn.addEventListener('click', prev);
+    resetBtn.addEventListener('click', reset);
+    autoBtn.addEventListener('click', auto);
+    reset();
+  })();
+  </script>
+</body>
+</html>

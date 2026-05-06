@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>DBSCAN Interactive Stepper — Numeric (z) + Categorical (Hamming)</title>
+<style>
+:root{
+  --font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --color-text:#1f2937;--color-muted:#6b7280;--color-bg:#f9fafb;--color-bg-page:#ffffff;--color-border:#e5e7eb;--color-header:#f3f4f6;
+  --color-core:#166534;--color-core-bg:#dcfce7;--color-noise:#4b5563;--color-noise-bg:#f3f4f6;--color-neighbor:#059669;--color-neighbor-bg:#f0fdf4;--color-not-neighbor:#78716c;--color-not-neighbor-bg:#fafaf9;
+  --color-primary:#075985;--color-primary-light:#e0f2fe;--color-badge:#0f172a;--color-badge-bg:#e2e8f0;
+}
+*{box-sizing:border-box}
+body{font-family:var(--font-family);background:var(--color-bg);color:var(--color-text);margin:0;padding:24px;}
+.container{max-width:1100px;margin:0 auto;background:var(--color-bg-page);border:1px solid var(--color-border);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.05);overflow:hidden;}
+header{padding:20px 24px;border-bottom:1px solid var(--color-border);}
+h1{margin:0;font-size:1.75rem;color:#000;}
+.sub{color:var(--color-muted);font-size:.9rem;margin-top:6px}
+.params{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;padding:16px 24px;background:#f8fafc;border-bottom:1px solid var(--color-border);}
+.param{display:flex;flex-direction:column;gap:6px;}
+.param label{font-size:.8rem;font-weight:700;color:var(--color-muted);text-transform:uppercase;}
+.param input[type="number"]{padding:8px 10px;border:1px solid var(--color-border);border-radius:8px;font-size:1rem;}
+.param .chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--color-border);border-radius:999px;background:#fff;font-size:.9rem;cursor:pointer}
+.chip input{margin:0}
+.resultsBanner{padding:10px 24px;border-top:1px dashed var(--color-border);border-bottom:1px solid var(--color-border);background:#fff;font-size:.95rem;display:flex;gap:18px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--color-badge-bg);color:var(--color-badge);border:1px solid var(--color-border);font-weight:600}
+.badge small{font-weight:500;color:#334155}
+.main-content{display:grid;grid-template-columns:310px 1fr;min-height:460px}
+.selector-panel{border-right:1px solid var(--color-border);background:#fcfdfe;padding:16px 0}
+.selector-title{padding:0 16px 8px 16px;font-size:.9rem;font-weight:600;color:var(--color-muted)}
+.selector-list{list-style:none;margin:0;padding:0}
+.selector-item{padding:12px 16px;border-bottom:1px solid var(--color-border);cursor:pointer;transition:background-color .15s ease}
+.selector-item:first-child{border-top:1px solid var(--color-border)}
+.selector-item:hover{background:var(--color-primary-light)}
+.selector-item.active{background:var(--color-primary);color:white;font-weight:600}
+.selector-item span{display:block;font-size:.8rem;color:#9ca3af;font-weight:400}
+.selector-item.active span{color:#dbeafe}
+.inspector-panel{padding:20px 24px}
+.inspector-placeholder{display:flex;align-items:center;justify-content:center;height:100%;text-align:center;color:var(--color-muted);font-size:1.05rem}
+.inspector-header{font-size:1.25rem;font-weight:600;margin:0 0 16px 0}
+.inspector-header code{font-size:1.1rem;background:var(--color-header);padding:2px 6px;border-radius:6px}
+.check-list{list-style:none;padding:0;margin:0 0 20px 0;border:1px solid var(--color-border);border-radius:8px;overflow:hidden}
+.check-row{display:grid;grid-template-columns:70px 1fr;gap:10px;padding:10px 12px;font-family:monospace,monospace;font-size:.95rem;border-bottom:1px solid var(--color-border)}
+.check-row:last-child{border-bottom:none}
+.check-row.self{background:#fafafa;color:var(--color-muted)}
+.check-row.neighbor{background:var(--color-neighbor-bg);color:var(--color-neighbor);font-weight:600}
+.check-row.not-neighbor{background:var(--color-not-neighbor-bg);color:var(--color-not-neighbor)}
+.check-point{font-weight:600}
+.check-result{white-space:pre-wrap}
+.table-mini{display:grid;grid-template-columns:90px 80px 95px 110px;gap:8px;font-family:monospace;font-size:.86rem;margin:4px 0 0 0}
+.table-mini .h{font-weight:700;color:#374151}
+.verdict-box{padding:16px;border-radius:8px;font-weight:600}
+.verdict-box h3{margin:0 0 12px 0;font-size:1.2rem}
+.verdict-row{display:flex;justify-content:space-between;font-size:1rem;font-weight:500;padding:4px 0}
+.verdict-row span:last-child{font-weight:700}
+.verdict-core{background:var(--color-core-bg);color:var(--color-core);border:1px solid var(--color-core)}
+.verdict-noise{background:var(--color-noise-bg);color:var(--color-noise);border:1px solid var(--color-noise)}
+.small{font-size:.85rem;color:var(--color-muted)}
+.note{padding:10px 12px;background:#fff;border:1px dashed var(--color-border);border-radius:8px;margin:10px 0 0 0}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>DBSCAN Interactive Stepper</h1>
+    <div class="sub">Distance metric: <code>combined = sqrt( numeric_z_dist² + w_ham × Hamming )</code>. Numeric features are z-scored; Hamming counts selected categorical mismatches.</div>
+  </header>
+
+  <!-- Controls -->
+  <div class="params">
+    <div class="param">
+      <label for="epsilon">Epsilon (ε)</label>
+      <input id="epsilon" type="number" value="2.7" step="0.1" min="0" />
+      <span class="small">0 ⇒ no neighbors; large ⇒ many neighbors</span>
+    </div>
+    <div class="param">
+      <label for="minpts">MinPts</label>
+      <input id="minpts" type="number" value="3" step="1" min="1" />
+      <span class="small">Points needed (with self) to be a core</span>
+    </div>
+
+    <div class="param">
+      <label>Numeric features</label>
+      <div class="chips" id="featureChipsNum">
+        <label class="chip"><input type="checkbox" value="visc_w" checked /> visc_w</label>
+        <label class="chip"><input type="checkbox" value="visc_hot" checked /> visc_hot</label>
+        <label class="chip"><input type="checkbox" value="vol_ml" /> vol_ml</label>
+      </div>
+      <span class="small">z-score per feature before distance</span>
+    </div>
+
+    <div class="param">
+      <label>Categorical features</label>
+      <div class="chips" id="featureChipsCat">
+        <label class="chip"><input type="checkbox" value="api_X" checked /> api_X</label>
+        <label class="chip"><input type="checkbox" value="jaso" checked /> jaso</label>
+        <label class="chip"><input type="checkbox" value="base" checked /> base</label>
+        <label class="chip"><input type="checkbox" value="country" /> country</label>
+        <label class="chip"><input type="checkbox" value="container" /> container</label>
+        <label class="chip"><input type="checkbox" value="barcode_present" /> barcode</label>
+        <label class="chip"><input type="checkbox" value="qrcode_present" /> qrcode</label>
+        <label class="chip"><input type="checkbox" value="scratchcode_present" /> scratchcode</label>
+      </div>
+      <span class="small">Hamming counts how many of these differ</span>
+    </div>
+
+    <div class="param">
+      <label for="hamW">Hamming weight (w<sub>ham</sub>)</label>
+      <input id="hamW" type="number" value="1" step="0.1" min="0" />
+      <span class="small">Scale for each categorical mismatch in the metric</span>
+    </div>
+
+    <div class="param">
+      <label>Notes</label>
+      <div class="small">Any change to ε / MinPts / features / weight fully recomputes neighborhoods & clusters from the embedded dataset.</div>
+    </div>
+  </div>
+
+  <!-- Dynamic cluster summary -->
+  <div class="resultsBanner" id="resultsBanner"></div>
+
+  <main class="main-content">
+    <aside class="selector-panel">
+      <div class="selector-title">Select a point to inspect:</div>
+      <ul class="selector-list" id="selectorList"></ul>
+    </aside>
+    <section class="inspector-panel" id="inspectorPanel">
+      <div class="inspector-placeholder" id="inspectorPlaceholder">
+        <p>Select a data point from the left menu to inspect its ε-neighborhood and see numeric + Hamming breakdowns.</p>
+      </div>
+      <div class="note small">
+        Columns show per-pair distances for the selected point: <b>Num</b>=sqrt(Σ z-diff²), <b>Ham</b>=Hamming count across chosen categoricals, <b>Combined</b>=sqrt(Num² + w<sub>ham</sub>×Ham). Neighborhood test uses the Combined value.
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------- Embedded CSV data (exact rows) ---------- */
+/* Columns: id, brand, visc_w, visc_hot, api_X, jaso, base, vol_ml, country, container, barcode_present, qrcode_present, scratchcode_present */
+const RAW_DATA = [
+  {"id":"eobi_honda","brand":"Pro Honda","visc_w":10,"visc_hot":30,"api_X":"API SL","jaso":"MA","base":"Fully_Synthetic","vol_ml":1000,"country":"India","container":"HDPE","barcode_present":"Yes","qrcode_present":"No","scratchcode_present":"No"},
+  {"id":"eobi_shell","brand":"Shell Advance Fuel Save","visc_w":10,"visc_hot":30,"api_X":"API SN","jaso":"MA2","base":"Fully_Synthetic","vol_ml":1000,"country":"Thiland","container":"HDPE","barcode_present":"Yes","qrcode_present":"Yes","scratchcode_present":"No"},
+  {"id":"eobi_ams_oil","brand":"AMS OIL","visc_w":10,"visc_hot":40,"api_X":"API SN","jaso":"MA2","base":"100%_Synthetic","vol_ml":946,"country":"USA","container":"HDPE","barcode_present":"Yes","qrcode_present":"No","scratchcode_present":"No"},
+  {"id":"eobi_liqui_moly","brand":"LIQUI MOLY STREET","visc_w":10,"visc_hot":30,"api_X":"API SN","jaso":"MA2","base":"Semi_Synthetic","vol_ml":1000,"country":"Germany","container":"HDPE","barcode_present":"Yes","qrcode_present":"Yes","scratchcode_present":"No"},
+  {"id":"eobi_idemitsu","brand":"idemitsu","visc_w":10,"visc_hot":30,"api_X":"API SN","jaso":"MA2","base":"Fully_Synthetic","vol_ml":1000,"country":"India","container":"HDPE","barcode_present":"No","qrcode_present":"No","scratchcode_present":"No"},
+  {"id":"eobi_ravenol","brand":"RAVENOL","visc_w":10,"visc_hot":30,"api_X":"API SN","jaso":"MA2","base":"Fully_Synthetic","vol_ml":1000,"country":"Germany","container":"HDPE","barcode_present":"Yes","qrcode_present":"No","scratchcode_present":"No"},
+  {"id":"eobi_mobil_super","brand":"Mobil Super","visc_w":10,"visc_hot":30,"api_X":"API SN","jaso":"MA2","base":"Fully_Synthetic","vol_ml":1000,"country":"Vietnam","container":"HDPE","barcode_present":"Yes","qrcode_present":"No","scratchcode_present":"No"}
+];
+
+/* ---------- Utilities ---------- */
+const range = n => [...Array(n).keys()];
+function mean(a){return a.reduce((s,v)=>s+v,0)/a.length;}
+function stdev(a){const m=mean(a); return Math.sqrt(mean(a.map(v=>(v-m)*(v-m)))||0); }
+function zscoreColumn(arr){const m=mean(arr), sd=stdev(arr)||1; return arr.map(v=>(v-m)/sd); }
+function euclid(a,b){let s=0; for(let i=0;i<a.length;i++){const d=a[i]-b[i]; s+=d*d;} return Math.sqrt(s);}
+function hamming(a,b){let c=0; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) c++; } return c; }
+function fmt(x){return (Math.round(x*1000)/1000).toFixed(3);}
+
+/* ---------- State ---------- */
+const state = {
+  epsilon: 2.7,
+  minPts: 3,
+  hamW: 1,
+  featuresNum: new Set(["visc_w","visc_hot"]),
+  featuresCat: new Set(["api_X","jaso","base"]),
+  points: [],          // [{id,label,vecNum,vecCat,index}]
+  distNum: [],         // numeric distances (sqrt(sum z^2))
+  distCombined: [],    // sqrt( distNum^2 + hamW * H )
+  neighborhoods: [],
+  clusters: [],
+  labels: []
+};
+
+/* ---------- Build points with selected features ---------- */
+function buildPoints(){
+  const featsN = [...state.featuresNum];
+  const featsC = [...state.featuresCat];
+
+  // Numeric vectors: z-score per selected feature
+  const cols = featsN.map(f => RAW_DATA.map(r => Number(r[f])));
+  const zcols = cols.map(zscoreColumn);
+  const vecsN = RAW_DATA.map((_,i) => zcols.map(col => col[i]));
+
+  // Categorical vectors: raw values for Hamming
+  const vecsC = RAW_DATA.map((r) => featsC.map(f => String(r[f])));
+
+  state.points = RAW_DATA.map((r,i)=>({
+    id: "R"+(i+1),
+    label: r.brand,
+    vecNum: vecsN[i],
+    vecCat: vecsC[i],
+    index: i
+  }));
+}
+
+/* ---------- Build distance matrices and neighborhoods ---------- */
+function buildDistancesAndNeighborhoods(){
+  const n = state.points.length;
+  const useNum = state.featuresNum.size>0;
+  const useCat = state.featuresCat.size>0;
+  state.distNum = Array.from({length:n},()=>Array(n).fill(0));
+  const hamCount = Array.from({length:n},()=>Array(n).fill(0));
+  state.distCombined = Array.from({length:n},()=>Array(n).fill(0));
+
+  for(let i=0;i<n;i++){
+    for(let j=i;j<n;j++){
+      const dn = useNum ? euclid(state.points[i].vecNum, state.points[j].vecNum) : 0;
+      const hc = useCat ? hamming(state.points[i].vecCat, state.points[j].vecCat) : 0;
+      const comb = Math.sqrt(dn*dn + state.hamW * hc);
+      state.distNum[i][j] = state.distNum[j][i] = dn;
+      hamCount[i][j] = hamCount[j][i] = hc;
+      state.distCombined[i][j] = state.distCombined[j][i] = comb;
+    }
+  }
+
+  // ε-neighborhoods by combined distance
+  state.neighborhoods = range(n).map(i =>
+    range(n).filter(j => j!==i && state.distCombined[i][j] <= state.epsilon)
+  );
+
+  // Store hamCount for inspector access
+  state._hamCount = hamCount;
+}
+
+/* ---------- DBSCAN (uses combined distance & neighborhoods) ---------- */
+function runDBSCAN(){
+  const n = state.points.length;
+  const visited = Array(n).fill(false);
+  const labels = Array(n).fill(-1);
+  let clusterId = 0;
+
+  for(let i=0;i<n;i++){
+    if(visited[i]) continue;
+    visited[i] = true;
+
+    const N = state.neighborhoods[i];
+    const totalPts = N.length + 1;
+
+    if(totalPts < state.minPts){
+      labels[i] = -1;
+    }else{
+      labels[i] = clusterId;
+      const seeds = [...N];
+      for(let k=0;k<seeds.length;k++){
+        const q = seeds[k];
+        if(!visited[q]){
+          visited[q] = true;
+          const Nq = state.neighborhoods[q];
+          const totalQ = Nq.length + 1;
+          if(totalQ >= state.minPts){
+            for(const w of Nq){ if(!seeds.includes(w)) seeds.push(w); }
+          }
+        }
+        if(labels[q] < 0) labels[q] = clusterId; // include noise/border
+      }
+      clusterId++;
+    }
+  }
+
+  state.labels = labels;
+  const clusters = Array.from({length:clusterId},()=>[]);
+  labels.forEach((cid,idx)=>{ if(cid>=0) clusters[cid].push(idx); });
+  state.clusters = clusters;
+}
+
+/* ---------- UI elements ---------- */
+const selectorList = document.getElementById('selectorList');
+const inspectorPanel = document.getElementById('inspectorPanel');
+const placeholder = document.getElementById('inspectorPlaceholder');
+const resultsBanner = document.getElementById('resultsBanner');
+
+function rebuildSelector(){
+  selectorList.innerHTML = "";
+  state.points.forEach((p,i)=>{
+    const li = document.createElement('li');
+    li.className = 'selector-item';
+    li.dataset.point = i;
+    const cid = state.labels[i];
+    const badge = (cid>=0) ? `C${cid+1}` : 'Noise';
+    li.innerHTML = `<b>${p.id}</b> <span>(${p.label})</span>
+                    <div class="small" style="margin-top:6px">
+                      <span class="badge">${badge}</span>
+                    </div>`;
+    selectorList.appendChild(li);
+  });
+}
+
+function rebuildBanner(){
+  const parts = [];
+  state.clusters.forEach((arr,idx)=>{
+    const names = arr.map(i=>state.points[i].id).join(", ");
+    parts.push(`<span class="badge">C${idx+1} <small>(${arr.length})</small></span><span class="small">[ ${names} ]</span>`);
+  });
+  const noise = state.labels.map((c,i)=>c<0?state.points[i].id:null).filter(Boolean);
+  const noiseHtml = noise.length ? `<span class="badge">Noise <small>(${noise.length})</small></span><span class="small">[ ${noise.join(", ")} ]</span>` : '';
+  resultsBanner.innerHTML = parts.join(" ") + (parts.length && noiseHtml? " ":"") + noiseHtml;
+  if(!resultsBanner.innerHTML.trim()) resultsBanner.textContent = "No clusters at current ε / MinPts.";
+}
+
+function attachSelectorHandler(){
+  selectorList.onclick = (e)=>{
+    const item = e.target.closest('.selector-item');
+    if(!item) return;
+    [...document.querySelectorAll('.selector-item')].forEach(el=>el.classList.remove('active'));
+    item.classList.add('active');
+    const idx = Number(item.dataset.point);
+    buildInspectorUI(idx);
+  };
+}
+
+function buildInspectorUI(idx){
+  placeholder?.remove();
+  const p = state.points[idx];
+
+  let neighborCount = 0;
+  let rows = "";
+  // header mini-table
+  let header = `<div class="table-mini">
+    <div class="h">Row</div><div class="h">Num</div><div class="h">Ham</div><div class="h">Combined</div>
+  </div>`;
+
+  state.points.forEach((q,j)=>{
+    const dn = state.distNum[idx][j];           // numeric (sqrt Σ z²)
+    const hc = state._hamCount[idx][j];         // Hamming count
+    const dc = state.distCombined[idx][j];      // combined
+    const isSelf = j===idx;
+    const isNbr = (!isSelf && dc <= state.epsilon);
+
+    if(isNbr) neighborCount++;
+
+    const row = `<div class="table-mini">
+      <div>${q.id}${isSelf?"*":""}</div><div>${fmt(dn)}</div><div>${hc}</div><div>${fmt(dc)}</div>
+    </div>`;
+
+    if(isSelf){
+      rows += `<li class="check-row self"><span class="check-point">${q.id}</span><span class="check-result">${row}</span></li>`;
+    }else if(isNbr){
+      rows += `<li class="check-row neighbor"><span class="check-point">${q.id}</span><span class="check-result">${row}\n→ Combined ≤ ε ⇒ NEIGHBOR</span></li>`;
+    }else{
+      rows += `<li class="check-row not-neighbor"><span class="check-point">${q.id}</span><span class="check-result">${row}\n→ Combined > ε ⇒ Not Neighbor</span></li>`;
+    }
+  });
+
+  const totalPts = neighborCount + 1;
+  const isCore = totalPts >= state.minPts;
+  const verdictClass = isCore ? 'verdict-core' : 'verdict-noise';
+  const verdictTitle = isCore ? 'VERDICT: CORE POINT' : 'VERDICT: NOISE POINT';
+  const verdictCheck = isCore ? `≥ ${state.minPts} (True)` : `< ${state.minPts} (False)`;
+
+  inspectorPanel.innerHTML = `
+    <h2 class="inspector-header">Inspecting Point: <code>${p.id}</code> <span class="small">(${p.label})</span></h2>
+    <div class="small" style="margin:-6px 0 10px 0">Combined metric uses <b>${[...state.featuresNum].join(", ")||"—"}</b> (numeric, z-scored) and <b>${[...state.featuresCat].join(", ")||"—"}</b> (categorical), weight = <b>${state.hamW}</b>.</div>
+    <ul class="check-list">
+      <li class="check-row self"><span class="check-point">Cols</span><span class="check-result">${header}</span></li>
+      ${rows}
+    </ul>
+    <div class="verdict-box ${verdictClass}">
+      <h3>${verdictTitle}</h3>
+      <div class="verdict-row"><span>Total Neighbors:</span><span>${neighborCount}</span></div>
+      <div class="verdict-row"><span>Total Points (self + neighbors):</span><span>${totalPts}</span></div>
+      <hr style="border:0;border-top:1px dashed currentColor;opacity:.5;margin:8px 0">
+      <div class="verdict-row"><span>Check: (Total Points ≥ MinPts?)</span><span>${totalPts} ${verdictCheck}</span></div>
+    </div>
+  `;
+}
+
+/* ---------- Recompute pipeline ---------- */
+function recomputeAll(){
+  // read controls
+  state.epsilon = Math.max(0, Number(document.getElementById('epsilon').value));
+  state.minPts  = Math.max(1, Math.round(Number(document.getElementById('minpts').value)));
+  state.hamW    = Math.max(0, Number(document.getElementById('hamW').value));
+
+  // build & compute
+  buildPoints();
+  buildDistancesAndNeighborhoods();
+  runDBSCAN();
+
+  // UI
+  rebuildSelector();
+  attachSelectorHandler();
+  rebuildBanner();
+  inspectorPanel.innerHTML = `<div class="inspector-placeholder" id="inspectorPlaceholder"><p>Select a data point from the left menu to inspect its ε-neighborhood and see numeric + Hamming breakdowns.</p></div>`;
+}
+
+/* ---------- Wire controls ---------- */
+function wireFeatureChips(containerId, setRef){
+  const el = document.getElementById(containerId);
+  el.addEventListener('change', (e)=>{
+    if(e.target && e.target.type==='checkbox'){
+      if(e.target.checked) setRef.add(e.target.value);
+      else setRef.delete(e.target.value);
+      if(setRef.size===0){ setRef.add(e.target.value); e.target.checked = true; return; } // keep ≥1 feature
+      recomputeAll();
+    }
+  });
+}
+wireFeatureChips('featureChipsNum', state.featuresNum);
+wireFeatureChips('featureChipsCat', state.featuresCat);
+
+document.getElementById('epsilon').addEventListener('input', recomputeAll);
+document.getElementById('minpts').addEventListener('input', recomputeAll);
+document.getElementById('hamW').addEventListener('input', recomputeAll);
+
+/* ---------- Init ---------- */
+recomputeAll();
+</script>
+</body>
+</html>

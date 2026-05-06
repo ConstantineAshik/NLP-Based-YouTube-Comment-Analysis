@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Research Toolkit V2 - Student Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Noto+Serif+Bengali:wght@400;600&display=swap');
+
+        body {
+            background-color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .bangla-text {
+            font-family: 'Noto Serif Bengali', serif;
+        }
+
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            margin: 20px auto;
+            padding: 40px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .page-header {
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-footer {
+            margin-top: auto;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        @media print {
+            body {
+                background: none;
+                margin: 0;
+            }
+            .a4-page {
+                margin: 0;
+                box-shadow: none;
+                width: 100%;
+                height: 100vh;
+                page-break-after: always;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+
+        .gradient-text {
+            background: linear-gradient(to right, #1e40af, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="a4-page">
+        <header class="page-header">
+            <div class="text-2xl font-bold text-slate-800"><i class="fas fa-layer-group text-blue-600 mr-2"></i> Research Toolkit V2</div>
+            <div class="text-sm font-semibold text-slate-500">Student Survival Guide</div>
+        </header>
+
+        <main class="flex-grow">
+            <div class="text-center mb-10">
+                <h1 class="text-4xl font-extrabold text-slate-900 mb-2">Emergency Research Toolkit</h1>
+                <p class="text-xl text-blue-600 font-semibold mb-4">4 Prompts Only • No Fabrication • Student Version</p>
+                <div class="bangla-text bg-blue-50 text-blue-900 p-4 rounded-lg inline-block border border-blue-200">
+                    <i class="fas fa-bullseye mr-2"></i> লক্ষ্য: ১০টা স্টেপ না করে ৪টা স্টেপে কাজ শেষ করা—কিন্তু বানিয়ে কিছু লিখবে না।
+                </div>
+            </div>
+
+            <div class="mb-10">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-l-4 border-red-500 pl-3">Golden Rules (গোল্ডেন রুল)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-red-50 p-5 rounded-xl border border-red-100 shadow-sm">
+                        <div class="text-red-700 font-bold mb-2"><i class="fas fa-ban mr-2"></i> Strict Prohibition</div>
+                        <p class="text-slate-700 text-sm mb-2">If information is missing in the pasted text, clearly state: <strong>"not clearly stated in provided text"</strong>.</p>
+                        <p class="bangla-text text-slate-600 text-sm">পেপারে যা নেই, সেটাকে “fact” বানাবে না। guess করবে না।</p>
+                    </div>
+                    <div class="bg-green-50 p-5 rounded-xl border border-green-100 shadow-sm">
+                        <div class="text-green-700 font-bold mb-2"><i class="fas fa-check-circle mr-2"></i> Implementation Logic</div>
+                        <p class="text-slate-700 text-sm mb-2">If you must assume a parameter for code execution, label it explicitly as an <strong>ASSUMPTION</strong>.</p>
+                        <p class="bangla-text text-slate-600 text-sm">Dataset না পেলে substitute dataset নেবে এবং রিপোর্টে সেটা লিখবে।</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-slate-800 mb-4 border-l-4 border-indigo-500 pl-3">Workflow Overview</h2>
+                <div class="relative bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center text-center text-xs md:text-sm font-semibold">
+                        <div class="w-1/4 px-2">
+                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2 text-lg shadow-sm">1</div>
+                            <div class="text-slate-800">Pipeline Extraction</div>
+                            <div class="text-slate-500 text-xs mt-1 bangla-text">Paper থেকে facts নাও</div>
+                        </div>
+                        <i class="fas fa-arrow-right text-slate-300"></i>
+                        <div class="w-1/4 px-2">
+                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-2 text-lg shadow-sm">2</div>
+                            <div class="text-slate-800">Gap Finding</div>
+                            <div class="text-slate-500 text-xs mt-1 bangla-text">একটা Gap বাছাই</div>
+                        </div>
+                        <i class="fas fa-arrow-right text-slate-300"></i>
+                        <div class="w-1/4 px-2">
+                            <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-2 text-lg shadow-sm">3</div>
+                            <div class="text-slate-800">Micro-Plan</div>
+                            <div class="text-slate-500 text-xs mt-1 bangla-text">২৪ ঘণ্টার প্ল্যান</div>
+                        </div>
+                        <i class="fas fa-arrow-right text-slate-300"></i>
+                        <div class="w-1/4 px-2">
+                            <div class="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-2 text-lg shadow-sm">4</div>
+                            <div class="text-slate-800">Report</div>
+                            <div class="text-slate-500 text-xs mt-1 bangla-text">Original vs Extension</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-48 w-full">
+                 <h3 class="text-sm font-bold text-slate-500 mb-2 uppercase text-center">Toolkit Efficiency Distribution</h3>
+                 <div class="flex justify-center h-full">
+                     <canvas id="efficiencyChart"></canvas>
+                 </div>
+            </div>
+
+        </main>
+        <footer class="page-footer">
+            <span>CSE Department • Data Mining Guide</span>
+            <span>Page 1 of 4</span>
+        </footer>
+    </div>
+
+    <div class="a4-page">
+        <header class="page-header">
+            <div class="text-2xl font-bold text-slate-800"><i class="fas fa-microscope text-blue-600 mr-2"></i> Analysis Phase</div>
+            <div class="text-sm font-semibold text-slate-500">Extracting Facts & Finding Gaps</div>
+        </header>
+
+        <main class="flex-grow">
+            <div class="mb-10">
+                <div class="flex items-center mb-4">
+                    <span class="bg-blue-600 text-white font-bold py-1 px-3 rounded mr-3">Step 1</span>
+                    <h2 class="text-xl font-bold text-slate-800">P1-Lite + Code-Ready Blueprint</h2>
+                </div>
+                
+                <div class="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-4">
+                    <h3 class="text-sm font-bold text-slate-500 uppercase mb-3">Input Process (What to paste)</h3>
+                    <div class="flex flex-wrap gap-2 text-sm text-slate-700">
+                        <span class="bg-white border px-2 py-1 rounded">Abstract</span>
+                        <span class="bg-white border px-2 py-1 rounded">Introduction</span>
+                        <span class="bg-white border px-2 py-1 rounded">Method / Algorithm</span>
+                        <span class="bg-white border px-2 py-1 rounded">Dataset Section</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-blue-700 mb-2 text-sm"><i class="fas fa-robot mr-1"></i> AI Role: Data Mining TA</h4>
+                        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-4">
+                            <li>Extract ONLY supported text.</li>
+                            <li>Generate <strong>P1-Lite</strong> (Problem, Core Idea).</li>
+                            <li>Identify <strong>Pipeline</strong> (Input → Step → Output).</li>
+                            <li>List Evaluation Metrics used.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                        <div class="bangla-text text-sm text-slate-800">
+                            <strong>নোট:</strong> Output থেকে ৩টা জিনিস আলাদা করবে:
+                            <ul class="list-decimal pl-4 mt-2 space-y-1">
+                                <li>Pipeline (Input → Algorithm → Output)</li>
+                                <li>Metric (Accuracy/F1/RMSE)</li>
+                                <li>"Not clearly stated" (এটা তোমার Gap list)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-slate-200 my-6">
+
+            <div class="mb-6">
+                <div class="flex items-center mb-4">
+                    <span class="bg-purple-600 text-white font-bold py-1 px-3 rounded mr-3">Step 2</span>
+                    <h2 class="text-xl font-bold text-slate-800">Evidence-Based Gap Finder</h2>
+                </div>
+
+                <div class="bg-purple-50 p-4 rounded-lg border border-purple-100 mb-6">
+                    <p class="text-sm text-purple-900 font-semibold mb-1">Constraint: Choose ONE Gap Only</p>
+                    <p class="bangla-text text-xs text-purple-800">AI যে ৪টা gap type দেখায়, সেখান থেকে একটাই নাও। সহজটা বেছে নাও।</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="border border-slate-200 rounded-lg p-3 hover:shadow-md transition">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Type A</div>
+                        <div class="font-bold text-slate-800 text-sm">Missing Metric</div>
+                        <p class="text-xs text-slate-500 mt-1">Focusing on wrong metric? (e.g., Acc vs F1 in imbalance)</p>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg p-3 hover:shadow-md transition">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Type B</div>
+                        <div class="font-bold text-slate-800 text-sm">Missing Baseline</div>
+                        <p class="text-xs text-slate-500 mt-1">Did they ignore a simple, obvious comparison?</p>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg p-3 hover:shadow-md transition">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Type C</div>
+                        <div class="font-bold text-slate-800 text-sm">Hyperparameter</div>
+                        <p class="text-xs text-slate-500 mt-1">Sensitivity not explored (k=?, threshold=?)</p>
+                    </div>
+                    <div class="border border-slate-200 rounded-lg p-3 hover:shadow-md transition">
+                        <div class="text-xs font-bold text-slate-400 uppercase">Type D</div>
+                        <div class="font-bold text-slate-800 text-sm">Missing Ablation</div>
+                        <p class="text-xs text-slate-500 mt-1">Did they test components individually?</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6">
+                <h3 class="text-sm font-bold text-slate-500 mb-2 text-center">Typical Gap Feasibility (For 24h Project)</h3>
+                <div class="h-40 w-full flex justify-center">
+                    <canvas id="gapChart"></canvas>
+                </div>
+            </div>
+
+        </main>
+        <footer class="page-footer">
+            <span>Critical Reviewer Mode</span>
+            <span>Page 2 of 4</span>
+        </footer>
+    </div>
+
+    <div class="a4-page">
+        <header class="page-header">
+            <div class="text-2xl font-bold text-slate-800"><i class="fas fa-tools text-blue-600 mr-2"></i> Execution & Planning</div>
+            <div class="text-sm font-semibold text-slate-500">24-Hour Micro-Extension</div>
+        </header>
+
+        <main class="flex-grow">
+             <div class="mb-10">
+                <div class="flex items-center mb-4">
+                    <span class="bg-orange-600 text-white font-bold py-1 px-3 rounded mr-3">Step 3</span>
+                    <h2 class="text-xl font-bold text-slate-800">The 24-Hour Micro-Plan</h2>
+                </div>
+
+                <div class="bg-slate-800 text-white p-5 rounded-xl mb-6 shadow-lg">
+                    <h3 class="text-sm font-bold uppercase text-slate-400 mb-3"><i class="fas fa-exclamation-triangle mr-2"></i> Hard Constraints</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="flex items-center"><i class="fas fa-clock text-orange-400 mr-2"></i> Time: 24 Hours Max</div>
+                        <div class="flex items-center"><i class="fas fa-laptop text-orange-400 mr-2"></i> Laptop CPU / Colab</div>
+                        <div class="flex items-center"><i class="fas fa-database text-red-400 mr-2"></i> No New Data Collection</div>
+                        <div class="flex items-center"><i class="fas fa-brain text-red-400 mr-2"></i> No Training Huge Models</div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="font-bold text-slate-700 mb-2">Output Requirements:</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded mt-0.5 mr-2">1</span>
+                            <div>
+                                <span class="font-semibold text-slate-800">The Exact Tweak:</span>
+                                <p class="text-sm text-slate-600 bangla-text">কোডে ঠিক কী বদলাবে (very concrete)।</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded mt-0.5 mr-2">2</span>
+                            <div>
+                                <span class="font-semibold text-slate-800">MVV (Minimum Viable Verification):</span>
+                                <p class="text-sm text-slate-600 bangla-text">৩–৫টা টাস্ক milestones।</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded mt-0.5 mr-2">3</span>
+                            <div>
+                                <span class="font-semibold text-slate-800">Assumption Handling:</span>
+                                <p class="text-sm text-slate-600 bangla-text">যদি কিছু ধরতে হয়, সেটা ASSUMPTION হিসেবে লিখতে হবে।</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <div class="flex items-center mb-4">
+                    <span class="bg-teal-600 text-white font-bold py-1 px-3 rounded mr-3">Step 4</span>
+                    <h2 class="text-xl font-bold text-slate-800">Report Skeleton</h2>
+                </div>
+
+                <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 bg-slate-50">
+                    <h3 class="text-center font-bold text-slate-700 mb-4">The P10-Compatible Structure</h3>
+                    
+                    <div class="flex flex-col md:flex-row gap-4 justify-center items-stretch">
+                        <div class="flex-1 bg-white p-4 rounded shadow-sm border-t-4 border-slate-400">
+                            <h4 class="font-bold text-slate-600 text-sm mb-2 text-center uppercase">Original Paper</h4>
+                            <ul class="text-xs text-slate-500 space-y-2 list-disc pl-4">
+                                <li>Introduction</li>
+                                <li>Background & Summary</li>
+                                <li>Mental Model (Pipeline)</li>
+                                <li>Original Experiments Summary</li>
+                                <li>Critical Analysis (Evidence-based)</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="flex items-center justify-center text-slate-300">
+                            <i class="fas fa-exchange-alt md:rotate-0 rotate-90 text-xl"></i>
+                        </div>
+
+                        <div class="flex-1 bg-white p-4 rounded shadow-sm border-t-4 border-teal-500">
+                            <h4 class="font-bold text-teal-700 text-sm mb-2 text-center uppercase">Our Extension</h4>
+                            <ul class="text-xs text-slate-500 space-y-2 list-disc pl-4">
+                                <li>Proposed Extension (Plan)</li>
+                                <li>Implementation & Results</li>
+                                <li>Discussion</li>
+                                <li>Conclusion</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                 <h3 class="text-sm font-bold text-slate-500 mb-2 text-center">Ideal Time Allocation (24 Hours)</h3>
+                 <div class="h-32 w-full flex justify-center">
+                     <canvas id="timeChart"></canvas>
+                 </div>
+            </div>
+
+        </main>
+        <footer class="page-footer">
+            <span>Project Manager Mode</span>
+            <span>Page 3 of 4</span>
+        </footer>
+    </div>
+
+    <div class="a4-page">
+        <header class="page-header">
+            <div class="text-2xl font-bold text-slate-800"><i class="fas fa-clipboard-check text-blue-600 mr-2"></i> Final Review</div>
+            <div class="text-sm font-semibold text-slate-500">Quality Assurance</div>
+        </header>
+
+        <main class="flex-grow">
+            <div class="mb-10">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Expected Artifacts</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <div class="text-3xl text-blue-500 mb-2"><i class="fas fa-table"></i></div>
+                        <h3 class="font-bold text-slate-700 text-sm">Comparison Table</h3>
+                        <p class="text-xs text-slate-500 mt-1">Original Metric vs. Our Metric</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <div class="text-3xl text-blue-500 mb-2"><i class="fas fa-chart-line"></i></div>
+                        <h3 class="font-bold text-slate-700 text-sm">Result Plot</h3>
+                        <p class="text-xs text-slate-500 mt-1">Visual proof of the change</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+                        <div class="text-3xl text-blue-500 mb-2"><i class="fas fa-code"></i></div>
+                        <h3 class="font-bold text-slate-700 text-sm">Clean Snippet</h3>
+                        <p class="text-xs text-slate-500 mt-1">The specific code tweak</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-xl p-8 border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-6 flex items-center">
+                    <i class="fas fa-tasks text-green-500 mr-2"></i> Quality Checklist
+                </h2>
+                <div class="space-y-4">
+                    <label class="flex items-start cursor-pointer">
+                        <div class="min-w-6 h-6 border-2 border-slate-300 rounded mr-3 flex items-center justify-center mt-0.5"></div>
+                        <div>
+                            <span class="font-bold text-slate-700 text-sm block">Separation of Concerns</span>
+                            <span class="text-slate-500 text-xs">Is "Original Paper" clearly labeled separately from "Our Extension"? (Don't mix them!)</span>
+                        </div>
+                    </label>
+                    <label class="flex items-start cursor-pointer">
+                        <div class="min-w-6 h-6 border-2 border-slate-300 rounded mr-3 flex items-center justify-center mt-0.5"></div>
+                        <div>
+                            <span class="font-bold text-slate-700 text-sm block">No Fabrication</span>
+                            <span class="text-slate-500 text-xs">Did I avoid inventing facts? Used "not clearly stated" where appropriate?</span>
+                        </div>
+                    </label>
+                    <label class="flex items-start cursor-pointer">
+                        <div class="min-w-6 h-6 border-2 border-slate-300 rounded mr-3 flex items-center justify-center mt-0.5"></div>
+                        <div>
+                            <span class="font-bold text-slate-700 text-sm block">Clear Tweak</span>
+                            <span class="text-slate-500 text-xs">Is the micro-extension (the Tweak) concrete and reproducible?</span>
+                        </div>
+                    </label>
+                    <label class="flex items-start cursor-pointer">
+                        <div class="min-w-6 h-6 border-2 border-slate-300 rounded mr-3 flex items-center justify-center mt-0.5"></div>
+                        <div>
+                            <span class="font-bold text-slate-700 text-sm block">Assumption Listing</span>
+                            <span class="text-slate-500 text-xs bangla-text">যদি Implementation-এ কিছু ধরে নিতে হয়, সেটা কি "Assumption" হিসেবে লিখেছি?</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="mt-auto pt-8 text-center">
+                 <p class="text-slate-400 text-xs italic">Use this toolkit responsibly. Academic integrity comes first.</p>
+            </div>
+
+        </main>
+        <footer class="page-footer">
+            <span>Ready to Submit</span>
+            <span>Page 4 of 4</span>
+        </footer>
+    </div>
+
+    <script>
+        // Page 1: Efficiency Chart
+        const ctxEfficiency = document.getElementById('efficiencyChart').getContext('2d');
+        new Chart(ctxEfficiency, {
+            type: 'doughnut',
+            data: {
+                labels: ['Reading', 'Analyzing (Step 1-2)', 'Planning (Step 3)', 'Reporting (Step 4)'],
+                datasets: [{
+                    data: [20, 30, 20, 30],
+                    backgroundColor: ['#e2e8f0', '#3b82f6', '#f97316', '#14b8a6'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } }
+                }
+            }
+        });
+
+        // Page 2: Gap Feasibility Chart
+        const ctxGap = document.getElementById('gapChart').getContext('2d');
+        new Chart(ctxGap, {
+            type: 'bar',
+            data: {
+                labels: ['Hyperparam', 'Baseline', 'Metric', 'Ablation'],
+                datasets: [{
+                    label: 'Ease of Execution (1-10)',
+                    data: [9, 8, 7, 5], // Hyperparameter is usually easiest to tweak code-wise
+                    backgroundColor: ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, display: false }, x: { grid: { display: false } } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Page 3: Time Chart
+        const ctxTime = document.getElementById('timeChart').getContext('2d');
+        new Chart(ctxTime, {
+            type: 'bar',
+            data: {
+                labels: ['Extract Facts', 'Find Gap', 'Code Tweak', 'Run Exp', 'Write Report'],
+                datasets: [{
+                    label: 'Hours Allocated',
+                    data: [2, 2, 6, 8, 6],
+                    backgroundColor: '#cbd5e1',
+                    hoverBackgroundColor: '#3b82f6',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { x: { display: false }, y: { grid: { display: false } } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+</body>
+</html>

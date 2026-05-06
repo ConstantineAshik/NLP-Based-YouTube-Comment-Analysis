@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Boundary Sculptor | Native Logic</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --highlight: #f1c40f; 
+            --bg: #f8fafc;
+            --text: #333;
+            --panel-bg: #e2e8f0;
+            --add-btn: #27ae60;
+            --remove-btn: #c0392b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin-top: 0; color: var(--primary); text-align: center; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 20px; }
+
+        .stage {
+            position: relative;
+            height: 500px;
+            background: #eee; /* Grey background helps show where Gold is MISSING */
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            cursor: crosshair;
+            overflow: hidden;
+            touch-action: none; 
+        }
+
+        canvas { width: 100%; height: 100%; display: block; }
+
+        .controls-area {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            background: #cbd5e1;
+            color: var(--primary);
+            transition: all 0.2s;
+        }
+
+        button:hover { background: #94a3b8; }
+
+        button.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+
+        button.add-btn {
+            background-color: var(--add-btn);
+            color: white;
+            border: 2px solid #219150;
+        }
+        button.add-btn:hover { background-color: #219150; }
+
+        .narrative {
+            margin-top: 20px;
+            padding: 15px;
+            border-left: 5px solid var(--highlight);
+            background: #fff8e1;
+            color: #5d4d00;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>The Boundary Sculptor</h1>
+    <div class="subtitle">"Visual Proof: The Gold is strictly defined by the Red Pointers."</div>
+
+    <div class="stage" id="stage">
+        <canvas id="sculptCanvas"></canvas>
+    </div>
+
+    <div class="controls-area">
+        <button id="btn-1" class="active" onclick="setScenario(1)">1. Single Neuron</button>
+        <button id="btn-2" onclick="setScenario(2)">2. Parallel Lines</button>
+        <button id="btn-3" onclick="setScenario(3)">3. Triangle</button>
+        <button class="add-btn" onclick="addOneNeuron()">+ Add One Line</button>
+        <button onclick="clearAll()">Clear All</button>
+    </div>
+
+    <div class="narrative" id="narrative-text">
+        <strong>Scenario 1:</strong> The Red Stick points to the Gold. Always.
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('sculptCanvas');
+    const ctx = canvas.getContext('2d');
+    const stage = document.getElementById('stage');
+
+    const dpr = window.devicePixelRatio || 1;
+    let lines = [];
+    let draggingHandle = null;
+
+    class NeuronLine {
+        constructor(x1, y1, x2, y2) {
+            this.p1 = {x: x1, y: y1};
+            this.p2 = {x: x2, y: y2};
+        }
+    }
+
+    function init() {
+        resize();
+        setScenario(1);
+        loop();
+    }
+
+    function resize() {
+        canvas.width = stage.clientWidth * dpr;
+        canvas.height = stage.clientHeight * dpr;
+        ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resize);
+
+    // --- SCENARIO LOGIC ---
+
+    function setScenario(n) {
+        const w = stage.clientWidth;
+        const h = stage.clientHeight;
+        
+        document.querySelectorAll('button').forEach(b => {
+            if(!b.classList.contains('add-btn')) b.classList.remove('active');
+        });
+        const btn = document.getElementById(`btn-${n}`);
+        if(btn) btn.classList.add('active');
+
+        lines = [];
+        
+        if (n === 1) {
+            // Standard horizontal line
+            lines.push(new NeuronLine(w*0.2, h*0.6, w*0.8, h*0.6));
+            updateText("<strong>Scenario 1:</strong> One cut. The Red Stick points Down. The Gold is Down.");
+        } 
+        else if (n === 2) {
+            // Corridor
+            lines.push(new NeuronLine(w*0.3, h*0.2, w*0.3, h*0.8)); // Left Wall (Normal points Right)
+            lines.push(new NeuronLine(w*0.7, h*0.8, w*0.7, h*0.2)); // Right Wall (Normal points Left)
+            updateText("<strong>Scenario 2:</strong> Two facing lines. The Gold exists only between them.");
+        } 
+        else if (n === 3) {
+            // Triangle (Clockwise Points -> Right Hand Normal points Inward)
+            lines.push(new NeuronLine(w*0.5, h*0.2, w*0.8, h*0.7)); 
+            lines.push(new NeuronLine(w*0.8, h*0.7, w*0.2, h*0.7)); 
+            lines.push(new NeuronLine(w*0.2, h*0.7, w*0.5, h*0.2));
+            updateText("<strong>Scenario 3 (Triangle):</strong> Three lines pointing inward. The Gold is trapped inside.");
+        }
+    }
+
+    function addOneNeuron() {
+        const w = stage.clientWidth;
+        const h = stage.clientHeight;
+        const cx = w/2;
+        const cy = h/2;
+        const off = (Math.random() - 0.5) * 80;
+        
+        lines.push(new NeuronLine(cx - 50 + off, cy - 50, cx + 50 + off, cy + 50));
+        
+        document.querySelectorAll('button').forEach(b => {
+             if(b.id.startsWith('btn-')) b.classList.remove('active');
+        });
+        updateText(`<strong>Custom Mode:</strong> ${lines.length} Neurons. If the screen goes grey, your neurons are contradicting each other (No Gold possible).`);
+    }
+
+    function clearAll() {
+        lines = [];
+        updateText("Canvas cleared.");
+    }
+
+    function updateText(html) {
+        document.getElementById('narrative-text').innerHTML = html;
+    }
+
+    // --- INTERACTION ---
+    function getMousePos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+    }
+
+    function hitTest(pos) {
+        for (let l of lines) {
+            if (Math.hypot(pos.x - l.p1.x, pos.y - l.p1.y) < 25) return {line: l, point: 'p1'};
+            if (Math.hypot(pos.x - l.p2.x, pos.y - l.p2.y) < 25) return {line: l, point: 'p2'};
+        }
+        return null;
+    }
+
+    canvas.addEventListener('mousedown', (e) => { draggingHandle = hitTest(getMousePos(e)); });
+    canvas.addEventListener('mousemove', (e) => {
+        const pos = getMousePos(e);
+        canvas.style.cursor = hitTest(pos) ? 'move' : 'crosshair';
+        if (draggingHandle) {
+            draggingHandle.line[draggingHandle.point].x = pos.x;
+            draggingHandle.line[draggingHandle.point].y = pos.y;
+        }
+    });
+    canvas.addEventListener('mouseup', () => { draggingHandle = null; });
+    
+    // Mobile Support
+    canvas.addEventListener('touchstart', (e) => {
+        draggingHandle = hitTest(getMousePos(e.touches[0]));
+        if(draggingHandle) e.preventDefault();
+    }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => {
+        if (draggingHandle) {
+            e.preventDefault();
+            const pos = getMousePos(e.touches[0]);
+            draggingHandle.line[draggingHandle.point].x = pos.x;
+            draggingHandle.line[draggingHandle.point].y = pos.y;
+        }
+    }, {passive: false});
+    canvas.addEventListener('touchend', () => { draggingHandle = null; });
+
+    // --- RENDERING (STRICT CLIPPING) ---
+    function loop() {
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        const w = stage.clientWidth;
+        const h = stage.clientHeight;
+        const diag = Math.hypot(w, h); // Safe extension length
+
+        ctx.clearRect(0, 0, w, h);
+
+        // 1. DRAW GOLD REGION (Using Intersection Clipping)
+        if (lines.length > 0) {
+            ctx.save();
+            
+            // Loop through every line and CLIP the drawing area
+            // This creates an "AND" intersection of all "Yes" regions
+            lines.forEach(line => {
+                let dx = line.p2.x - line.p1.x;
+                let dy = line.p2.y - line.p1.y;
+                
+                // Normal Vector (Right Hand Rule)
+                // If you walk from p1 to p2, this vector points Right.
+                // This will match the Red Stick exactly.
+                const nx = -dy; 
+                const ny = dx;
+                
+                // Normalize for consistent extrusion
+                const len = Math.hypot(nx, ny) || 1;
+                const u_nx = nx / len;
+                const u_ny = ny / len;
+
+                ctx.beginPath();
+                // We draw a massive polygon representing the "Yes" side
+                // 1. Start far "behind" p1
+                ctx.moveTo(line.p1.x - dx*10, line.p1.y - dy*10);
+                // 2. Go to far "ahead" of p2
+                ctx.lineTo(line.p2.x + dx*10, line.p2.y + dy*10);
+                // 3. Extrude OUTWARD in the direction of the Normal (Red Stick)
+                // This covers the entire "Yes" side
+                ctx.lineTo(line.p2.x + dx*10 + u_nx * diag * 2, line.p2.y + dy*10 + u_ny * diag * 2);
+                ctx.lineTo(line.p1.x - dx*10 + u_nx * diag * 2, line.p1.y - dy*10 + u_ny * diag * 2);
+                
+                ctx.closePath();
+                
+                // Restrict future drawing to strictly INSIDE this "Yes" polygon
+                ctx.clip();
+            });
+
+            // Fill whatever is left (The Intersection)
+            ctx.fillStyle = '#f1c40f'; // Gold
+            ctx.fillRect(0, 0, w, h);
+            
+            ctx.restore();
+        } else {
+            // No lines? Full gold (or empty, your choice. Let's say Full for 'Infinite Potential')
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillRect(0, 0, w, h);
+        }
+
+        // 2. DRAW UI OVERLAY
+        lines.forEach(line => {
+            let dx = line.p2.x - line.p1.x;
+            let dy = line.p2.y - line.p1.y;
+
+            // Draw Line
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(line.p1.x - dx*10, line.p1.y - dy*10);
+            ctx.lineTo(line.p2.x + dx*10, line.p2.y + dy*10);
+            ctx.stroke();
+
+            // Draw Red Stick (YES Pointer)
+            // MUST use exact same math as the Polygon Normal above
+            const nx = -dy;
+            const ny = dx;
+            const len = Math.hypot(nx, ny) || 1;
+            const u_nx = nx / len;
+            const u_ny = ny / len;
+
+            const mx = (line.p1.x + line.p2.x)/2;
+            const my = (line.p1.y + line.p2.y)/2;
+
+            ctx.beginPath();
+            ctx.moveTo(mx, my);
+            ctx.lineTo(mx + u_nx * 20, my + u_ny * 20); // 20px stick
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#e74c3c'; // Red
+            ctx.stroke();
+
+            // Draw Handles
+            drawHandle(line.p1);
+            drawHandle(line.p2);
+        });
+    }
+
+    function drawHandle(p) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI*2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    init();
+
+</script>
+</body>
+</html>

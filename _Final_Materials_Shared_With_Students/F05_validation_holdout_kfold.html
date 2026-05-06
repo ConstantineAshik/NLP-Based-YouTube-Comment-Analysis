@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validation Strategies Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --highlight: #f1c40f;
+            --class-a: rgba(52, 152, 219, 0.8); /* Blue */
+            --class-b: rgba(230, 126, 34, 0.8);  /* Orange */
+            --bg-color: #f8fafc;
+            --text-color: #333;
+            --panel-bg: #ffffff;
+            --success: #27ae60;
+            --danger: #c0392b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* NAVIGATION */
+        header {
+            background: var(--primary);
+            padding: 15px;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav a {
+            color: #bdc3c7;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover { color: white; }
+        nav a.active { color: var(--highlight); font-weight: bold; }
+
+        /* LAYOUT */
+        .main-container {
+            max-width: 1100px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        h1 { text-align: center; color: var(--primary); margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 30px; }
+
+        .lab-panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-top: 5px solid var(--primary);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .panel-title { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        
+        /* CONTROLS */
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover { background: #34495e; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        input[type="range"] { cursor: pointer; }
+        select { padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+
+        /* PANEL A: HOLDOUT */
+        .split-viz-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .canvas-wrapper {
+            text-align: center;
+        }
+
+        canvas.scatter {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            height: 250px;
+        }
+
+        .metric-big {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .history-chart-container {
+            height: 250px;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        /* PANEL B: K-FOLD */
+        .fold-viz-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .fold-bar {
+            display: flex;
+            width: 100%;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--primary);
+        }
+
+        .fold-segment {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            transition: background 0.3s;
+            background: #bdc3c7; /* Default: Inactive */
+        }
+        .fold-segment:last-child { border-right: none; }
+        
+        .fold-segment.train { background: var(--accent); } /* Blue */
+        .fold-segment.test { background: var(--highlight); color: #333; } /* Gold */
+
+        .cv-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .stat-box {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-label { font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: var(--primary); margin-top: 5px; }
+
+        /* THEORY ACCORDION */
+        details {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        summary {
+            background: #f1f5f9;
+            padding: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        summary::after { content: "+"; font-size: 1.2rem; }
+        details[open] summary::after { content: "-"; }
+        .theory-content { padding: 20px; line-height: 1.6; color: #555; }
+        
+        ul { margin-top: 5px; padding-left: 20px; }
+        li { margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <a href="index.html">Foundations</a>
+            <a href="high_dim.html">Decision Trees</a>
+            <a href="tree_box_maker.html">Box Maker</a>
+            <a href="neural_net.html">Neural Nets</a>
+            <a href="fs_and_splits_lab.html">Feature & Split Lab</a>
+            <a href="tree_rules_and_covering.html">Rules & Covering</a>
+            <a href="nbayes_and_metrics_lab.html">Naïve Bayes & Metrics</a>
+            <a href="validation_strategies_lab.html" class="active">Validation</a>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <h1>Validation Strategies Lab</h1>
+        <div class="subtitle">Why trust a single test score?</div>
+
+        <details open>
+            <summary>Why is a single Train/Test split risky?</summary>
+            <div class="theory-content">
+                <p>The standard "Holdout Method" splits data into two parts: Training (to learn) and Testing (to evaluate).</p>
+                <ul>
+                    <li><strong>The "Lottery" Effect:</strong> If your dataset is small, a lucky split might put all easy cases in the test set (high accuracy), while an unlucky split puts all weird outliers in the test set (low accuracy).</li>
+                    <li><strong>Resource Waste:</strong> You never learn from the data held out for testing.</li>
+                </ul>
+            </div>
+        </details>
+
+        <div class="lab-panel">
+            <div class="panel-header">
+                <div class="panel-title">Panel A: The Split Lottery</div>
+            </div>
+
+            <div class="controls">
+                <label>Split Ratio (Train %): <span id="split-val">70</span>%</label>
+                <input type="range" id="split-slider" min="50" max="95" step="5" value="70">
+                <button onclick="runHoldout()">Reshuffle & Train</button>
+            </div>
+
+            <div class="split-viz-container">
+                <div class="canvas-wrapper">
+                    <h4>Training Set (The Teacher)</h4>
+                    <canvas id="trainCanvas" class="scatter"></canvas>
+                </div>
+                <div class="canvas-wrapper">
+                    <h4>Test Set (The Exam)</h4>
+                    <canvas id="testCanvas" class="scatter"></canvas>
+                    <div class="metric-big" id="holdout-acc">--%</div>
+                    <div>Accuracy</div>
+                </div>
+                <div class="canvas-wrapper">
+                    <h4>Accuracy History</h4>
+                    <div class="history-chart-container">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                    <div style="font-size:0.8rem; color:#7f8c8d; margin-top:5px;">Shows volatility across reshuffles</div>
+                </div>
+            </div>
+        </div>
+
+        <details>
+            <summary>How Cross-Validation fixes the problem</summary>
+            <div class="theory-content">
+                <p>k-Fold Cross-Validation rotates the role of the "Test Set" so every data point gets tested exactly once.</p>
+                <ul>
+                    <li><strong>No data wasted:</strong> Everyone is used for training (in other folds) and testing (in their fold).</li>
+                    <li><strong>Stable Estimate:</strong> We average the results, canceling out the "lucky" and "unlucky" splits.</li>
+                    <li><strong>Trade-off:</strong> It takes <em>k</em> times longer to run.</li>
+                </ul>
+            </div>
+        </details>
+
+        <div class="lab-panel">
+            <div class="panel-header">
+                <div class="panel-title">Panel B: k-Fold Carousel</div>
+            </div>
+
+            <div class="controls">
+                <label>Number of Folds (k):</label>
+                <select id="k-select">
+                    <option value="3">3 Folds</option>
+                    <option value="5" selected>5 Folds</option>
+                    <option value="10">10 Folds</option>
+                </select>
+                <button id="btn-run-cv" onclick="runCV()">Run CV</button>
+            </div>
+
+            <div class="fold-viz-container">
+                <div id="fold-bar" class="fold-bar">
+                    </div>
+
+                <div class="cv-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Current Fold Accuracy</div>
+                        <div class="stat-value" id="cv-current-acc">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Mean Accuracy</div>
+                        <div class="stat-value" id="cv-mean-acc">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Range (Min - Max)</div>
+                        <div class="stat-value" id="cv-range">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    // --- GLOBAL STATE & CONFIG ---
+    const COLORS = {
+        A: 'rgba(52, 152, 219, 0.8)', // Blue
+        B: 'rgba(230, 126, 34, 0.8)',  // Orange
+        Correct: '#2ecc71',
+        Wrong: '#e74c3c'
+    };
+
+    // Data Store
+    let points = [];
+    const TOTAL_POINTS = 300;
+    
+    // Holdout History
+    let historyData = [];
+    let historyChartInstance = null;
+
+    // --- DATA GENERATION ---
+    function generateData() {
+        points = [];
+        // Cluster A (Blue)
+        for (let i = 0; i < TOTAL_POINTS/2; i++) {
+            points.push({
+                x: 0.3 + randn() * 0.15,
+                y: 0.3 + randn() * 0.15,
+                label: 'A'
+            });
+        }
+        // Cluster B (Orange) - Slight overlap
+        for (let i = 0; i < TOTAL_POINTS/2; i++) {
+            points.push({
+                x: 0.7 + randn() * 0.15,
+                y: 0.7 + randn() * 0.15,
+                label: 'B'
+            });
+        }
+        // Shuffle
+        points.sort(() => Math.random() - 0.5);
+    }
+
+    // Box-Muller Random Normal
+    function randn() {
+        let u = 0, v = 0;
+        while(u === 0) u = Math.random();
+        while(v === 0) v = Math.random();
+        return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    }
+
+    // --- SIMPLE CLASSIFIER (Nearest Centroid) ---
+    function trainNearestCentroid(trainingData) {
+        let sumAX = 0, sumAY = 0, countA = 0;
+        let sumBX = 0, sumBY = 0, countB = 0;
+
+        trainingData.forEach(p => {
+            if (p.label === 'A') { sumAX += p.x; sumAY += p.y; countA++; }
+            else { sumBX += p.x; sumBY += p.y; countB++; }
+        });
+
+        // Handle edge case of 0 points (rare)
+        if(countA === 0) countA = 1;
+        if(countB === 0) countB = 1;
+
+        return {
+            centroidA: { x: sumAX / countA, y: sumAY / countA },
+            centroidB: { x: sumBX / countB, y: sumBY / countB }
+        };
+    }
+
+    function predict(model, point) {
+        const distA = Math.hypot(point.x - model.centroidA.x, point.y - model.centroidA.y);
+        const distB = Math.hypot(point.x - model.centroidB.x, point.y - model.centroidB.y);
+        return distA < distB ? 'A' : 'B';
+    }
+
+    // --- PANEL A: HOLDOUT LOGIC ---
+    
+    function initHistoryChart() {
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        historyChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Test Accuracy',
+                    data: [],
+                    backgroundColor: 'rgba(44, 62, 80, 0.5)',
+                    borderColor: '#2c3e50',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: false, min: 0.5, max: 1.0 }
+                },
+                animation: false
+            }
+        });
+    }
+
+    function runHoldout() {
+        // 1. Get Split Ratio
+        const ratio = parseInt(document.getElementById('split-slider').value) / 100;
+        document.getElementById('split-val').innerText = (ratio * 100);
+
+        // 2. Reshuffle Data (Simulate "Lottery")
+        points.sort(() => Math.random() - 0.5);
+
+        // 3. Split
+        const splitIdx = Math.floor(points.length * ratio);
+        const trainSet = points.slice(0, splitIdx);
+        const testSet = points.slice(splitIdx);
+
+        // 4. Train
+        const model = trainNearestCentroid(trainSet);
+
+        // 5. Predict & Evaluate
+        let correct = 0;
+        testSet.forEach(p => {
+            p.pred = predict(model, p);
+            if(p.pred === p.label) correct++;
+        });
+        const accuracy = correct / testSet.length;
+
+        // 6. Visualization
+        drawScatter(document.getElementById('trainCanvas'), trainSet, false);
+        drawScatter(document.getElementById('testCanvas'), testSet, true); // True = show results
+
+        // 7. Update UI
+        document.getElementById('holdout-acc').innerText = (accuracy * 100).toFixed(1) + '%';
+        
+        // Update Chart
+        if (historyData.length > 10) historyData.shift(); // Keep last 10
+        historyData.push(accuracy);
+        
+        historyChartInstance.data.labels = historyData.map((_, i) => i + 1);
+        historyChartInstance.data.datasets[0].data = historyData;
+        historyChartInstance.update();
+    }
+
+    function drawScatter(canvas, dataset, showResults) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width = canvas.parentElement.clientWidth;
+        const h = canvas.height = 250;
+        const scale = Math.min(w, h) * 0.8;
+        const offsetX = w * 0.1;
+        const offsetY = h * 0.1;
+
+        ctx.clearRect(0,0,w,h);
+
+        dataset.forEach(p => {
+            const px = p.x * scale + offsetX;
+            const py = p.y * scale + offsetY;
+
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI*2);
+            ctx.fillStyle = p.label === 'A' ? COLORS.A : COLORS.B;
+            ctx.fill();
+
+            // Draw Halo for Test Results
+            if (showResults) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = p.pred === p.label ? COLORS.Correct : COLORS.Wrong;
+                ctx.stroke();
+            }
+        });
+    }
+
+    // --- PANEL B: K-FOLD LOGIC ---
+
+    async function runCV() {
+        const k = parseInt(document.getElementById('k-select').value);
+        const btn = document.getElementById('btn-run-cv');
+        const bar = document.getElementById('fold-bar');
+        
+        btn.disabled = true;
+        btn.innerText = "Running...";
+        
+        // Reset Logic
+        points.sort(() => Math.random() - 0.5); // Initial shuffle before CV
+        const foldSize = Math.floor(points.length / k);
+        let accuracies = [];
+
+        // Build UI Segments
+        bar.innerHTML = '';
+        let segments = [];
+        for(let i=0; i<k; i++) {
+            let seg = document.createElement('div');
+            seg.className = 'fold-segment';
+            seg.innerText = `Fold ${i+1}`;
+            bar.appendChild(seg);
+            segments.push(seg);
+        }
+
+        // The Loop
+        for(let i=0; i<k; i++) {
+            // 1. Highlight UI
+            segments.forEach((s, idx) => {
+                s.className = 'fold-segment ' + (idx === i ? 'test' : 'train');
+            });
+
+            // 2. Logic Split
+            // Test indices: i*foldSize to (i+1)*foldSize
+            const start = i * foldSize;
+            const end = start + foldSize;
+            
+            const testSet = points.slice(start, end);
+            const trainSet = points.filter((_, idx) => idx < start || idx >= end);
+
+            // 3. Train & Eval
+            const model = trainNearestCentroid(trainSet);
+            let correct = 0;
+            testSet.forEach(p => {
+                if(predict(model, p) === p.label) correct++;
+            });
+            const acc = correct / testSet.length;
+            accuracies.push(acc);
+
+            // 4. Show Current Acc
+            document.getElementById('cv-current-acc').innerText = (acc * 100).toFixed(1) + '%';
+            document.getElementById('cv-current-acc').style.color = acc > 0.8 ? COLORS.Correct : COLORS.Wrong;
+
+            // 5. Wait for Animation
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        // Final Results
+        const mean = accuracies.reduce((a,b)=>a+b, 0) / k;
+        const min = Math.min(...accuracies);
+        const max = Math.max(...accuracies);
+
+        document.getElementById('cv-mean-acc').innerText = (mean * 100).toFixed(1) + '%';
+        document.getElementById('cv-range').innerText = `${(min*100).toFixed(1)}% - ${(max*100).toFixed(1)}%`;
+        
+        // Reset UI state
+        btn.disabled = false;
+        btn.innerText = "Run CV";
+    }
+
+    // --- INIT ---
+    generateData();
+    initHistoryChart();
+    runHoldout(); // Initial draw
+    
+    // Wire Sliders
+    document.getElementById('split-slider').addEventListener('input', (e) => {
+        document.getElementById('split-val').innerText = e.target.value;
+    });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Deep Layer Deconstructor</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --panel-bg: #ffffff;
+            --text: #333;
+            --line-color: #94a3b8;
+            --highlight-line: #2c3e50;
+            --tile-a: #e67e22; /* Orange */
+            --tile-b: #3498db; /* Blue */
+            --mosaic: #8e44ad; /* Purple */
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: #2c3e50; margin-bottom: 5px; }
+        .subtitle { color: #7f8c8d; margin-bottom: 30px; font-style: italic; }
+
+        /* THE GRID LAYOUT */
+        .layer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .layer-column {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .layer-header {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #2c3e50;
+        }
+
+        .layer-desc {
+            font-size: 0.85rem;
+            color: #666;
+            text-align: center;
+            margin-bottom: 15px;
+            min-height: 40px;
+        }
+
+        canvas {
+            background: #eee;
+            border-radius: 4px;
+            width: 100%;
+            height: 300px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        /* Arrows between columns */
+        .arrow {
+            position: absolute;
+            top: 50%;
+            right: -25px;
+            font-size: 2rem;
+            color: #bdc3c7;
+            z-index: 10;
+        }
+
+        /* Narrative/Status Box */
+        .status-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff;
+            border-left: 5px solid #27ae60;
+            max-width: 800px;
+            line-height: 1.6;
+        }
+
+        /* INTERACTIVITY HINTS */
+        .interaction-hint {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>The Deep Layer Deconstructor</h1>
+    <div class="subtitle">"Layer 1 Cuts. Layer 2 Tiles. Layer 3 Mosaics."</div>
+
+    <div class="layer-grid">
+        <div class="layer-column">
+            <div class="layer-header">Layer 1</div>
+            <div class="layer-desc">The "Ruler". Creates raw linear boundaries (Hyperplanes).</div>
+            <canvas id="c1"></canvas>
+            <div class="interaction-hint">Look at the chaos of lines here.</div>
+            <div class="arrow">&rarr;</div>
+        </div>
+
+        <div class="layer-column">
+            <div class="layer-header">Layer 2</div>
+            <div class="layer-desc">The "Tiles". Combines specific lines to make convex polygons (AND logic).</div>
+            <canvas id="c2"></canvas>
+            <div class="interaction-hint">HOVER here to see how lines are selected.</div>
+            <div class="arrow">&rarr;</div>
+        </div>
+
+        <div class="layer-column">
+            <div class="layer-header">Layer 3</div>
+            <div class="layer-desc">The "Mosaic". Combines polygons to make complex, disjoint shapes (OR logic).</div>
+            <canvas id="c3"></canvas>
+            <div class="interaction-hint">The final "Deep" output.</div>
+        </div>
+    </div>
+
+    <div class="status-box" id="status-text">
+        <strong>Interaction Ready:</strong> Hover over the Shapes in <strong>Layer 2</strong> (the middle column).<br>
+        See how Shape A uses only 3 lines, and Shape B uses a different set of 3 lines? <br>
+        Layer 2 acts as a <em>filter</em>, selecting only the boundaries it needs to build a "Tile".
+    </div>
+
+<script>
+    // --- SETUP ---
+    const c1 = document.getElementById('c1');
+    const c2 = document.getElementById('c2');
+    const c3 = document.getElementById('c3');
+    const ctx1 = c1.getContext('2d');
+    const ctx2 = c2.getContext('2d');
+    const ctx3 = c3.getContext('2d');
+    const statusText = document.getElementById('status-text');
+
+    // Canvas scaling
+    const dpr = window.devicePixelRatio || 1;
+    function resizeCanvas(c, ctx) {
+        c.width = c.clientWidth * dpr;
+        c.height = c.clientHeight * dpr;
+        ctx.scale(dpr, dpr);
+    }
+    
+    // Resize all
+    function resizeAll() {
+        resizeCanvas(c1, ctx1);
+        resizeCanvas(c2, ctx2);
+        resizeCanvas(c3, ctx3);
+        draw();
+    }
+    window.addEventListener('resize', resizeAll);
+
+    // --- DATA MODEL ---
+    // We will create two distinct shapes: A Triangle (Top Left) and a Triangle (Bottom Right)
+    // This creates a "Bowtie" or "Two Islands" effect, which is impossible for a single layer.
+
+    // Normalized coordinates (0-1)
+    const lines = [
+        // SHAPE A LINES (Triangle Top-Left)
+        { id: 0, p1: {x:0, y:0.5}, p2: {x:0.5, y:0}, activeFor: 'A' }, // Diagonal /
+        { id: 1, p1: {x:0, y:0.1}, p2: {x:0, y:0.9}, activeFor: 'A' }, // Left Border |
+        { id: 2, p1: {x:0, y:0.1}, p2: {x:1, y:0.1}, activeFor: 'A' }, // Top Border -
+
+        // SHAPE B LINES (Triangle Bottom-Right)
+        { id: 3, p1: {x:0.5, y:1}, p2: {x:1, y:0.5}, activeFor: 'B' }, // Diagonal /
+        { id: 4, p1: {x:1, y:0.1}, p2: {x:1, y:0.9}, activeFor: 'B' }, // Right Border |
+        { id: 5, p1: {x:0, y:0.9}, p2: {x:1, y:0.9}, activeFor: 'B' }  // Bottom Border -
+    ];
+
+    // Layer 2 Nodes (Polygons)
+    // Each node knows which lines define it.
+    const polygons = [
+        { name: 'A', color: 'rgba(230, 126, 34, 0.8)', lineIndices: [0, 1, 2], center: {x: 0.2, y: 0.2} },
+        { name: 'B', color: 'rgba(52, 152, 219, 0.8)', lineIndices: [3, 4, 5], center: {x: 0.8, y: 0.8} }
+    ];
+
+    // Interaction State
+    let hoveredPoly = null; // 'A' or 'B' or null
+
+    // --- INTERACTION LOGIC ---
+    c2.addEventListener('mousemove', (e) => {
+        const rect = c2.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / c2.width * c2.width; // scaling fix logic simplified below
+        // Simple hit test based on centers
+        const mx = (e.clientX - rect.left) / c2.clientWidth;
+        const my = (e.clientY - rect.top) / c2.clientHeight;
+
+        let hit = null;
+        // Distances to shape centers
+        const distA = Math.hypot(mx - 0.15, my - 0.15); // Hardcoded center approx
+        const distB = Math.hypot(mx - 0.85, my - 0.85);
+
+        if (distA < 0.25) hit = 'A';
+        else if (distB < 0.25) hit = 'B';
+        else hit = null;
+
+        if (hit !== hoveredPoly) {
+            hoveredPoly = hit;
+            updateNarrative();
+            draw();
+        }
+    });
+
+    c2.addEventListener('mouseleave', () => {
+        hoveredPoly = null;
+        updateNarrative();
+        draw();
+    });
+
+    function updateNarrative() {
+        if (!hoveredPoly) {
+            statusText.innerHTML = `<strong>Status:</strong> Viewing the whole network.<br>Layer 3 (Right) is combining <strong>both</strong> tiles to form a complex, non-connected boundary. A single layer could never create two separate islands like this.`;
+        } else {
+            const poly = polygons.find(p => p.name === hoveredPoly);
+            statusText.innerHTML = `<strong>Focusing on Tile ${poly.name}:</strong><br>
+            Look at <strong>Layer 1 (Left)</strong>. See how only 3 specific lines light up?<br>
+            The Neuron for Tile ${poly.name} effectively says: "I only care about these 3 lines. I ignore the others." This is how structure emerges from chaos.`;
+        }
+    }
+
+    // --- DRAWING ENGINE ---
+    function draw() {
+        // Clear all
+        ctx1.clearRect(0,0, c1.width, c1.height);
+        ctx2.clearRect(0,0, c2.width, c2.height);
+        ctx3.clearRect(0,0, c3.width, c3.height);
+
+        const w = c1.width / dpr; // Logical width
+        const h = c1.height / dpr;
+
+        // --- DRAW LAYER 1 (LINES) ---
+        lines.forEach(line => {
+            // Check if this line should be highlighted based on hover
+            let isDim = false;
+            let isHighlight = false;
+
+            if (hoveredPoly) {
+                const poly = polygons.find(p => p.name === hoveredPoly);
+                if (poly.lineIndices.includes(line.id)) {
+                    isHighlight = true;
+                } else {
+                    isDim = true;
+                }
+            }
+
+            ctx1.beginPath();
+            // Scale coords
+            const x1 = line.p1.x * w;
+            const y1 = line.p1.y * h;
+            const x2 = line.p2.x * w;
+            const y2 = line.p2.y * h;
+            
+            // Extend lines to edges of canvas for "Hyperplane" look
+            // Simple vector math to push them out
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            
+            ctx1.moveTo(x1 - dx*10, y1 - dy*10);
+            ctx1.lineTo(x2 + dx*10, y2 + dy*10);
+
+            if (isHighlight) {
+                ctx1.strokeStyle = '#e74c3c';
+                ctx1.lineWidth = 4;
+                ctx1.globalAlpha = 1.0;
+            } else if (isDim) {
+                ctx1.strokeStyle = '#ccc';
+                ctx1.lineWidth = 1;
+                ctx1.globalAlpha = 0.3;
+            } else {
+                ctx1.strokeStyle = '#7f8c8d';
+                ctx1.lineWidth = 2;
+                ctx1.globalAlpha = 0.6;
+            }
+            
+            ctx1.stroke();
+            ctx1.globalAlpha = 1.0; // Reset
+        });
+
+        // --- DRAW LAYER 2 (TILES) ---
+        // We draw the polygons separately
+        polygons.forEach(poly => {
+            // Should we draw this one?
+            let shouldDraw = true;
+            if (hoveredPoly && hoveredPoly !== poly.name) shouldDraw = true; // Keep both visible but maybe dim one?
+            // Actually, let's keep both visible but highlight the border of the hovered one
+
+            if(shouldDraw) {
+                drawPolygonShape(ctx2, w, h, poly);
+                
+                // Add label
+                ctx2.fillStyle = '#fff';
+                ctx2.font = 'bold 20px sans-serif';
+                ctx2.fillText(poly.name, poly.center.x * w, poly.center.y * h);
+
+                // Highlight border if hovered
+                if (hoveredPoly === poly.name) {
+                    ctx2.lineWidth = 4;
+                    ctx2.strokeStyle = '#333';
+                    ctx2.stroke();
+                }
+            }
+        });
+
+        // --- DRAW LAYER 3 (MOSAIC) ---
+        // Draw ALL polygons into one shared space
+        // This visualizes the UNION (OR logic)
+        polygons.forEach(poly => {
+            drawPolygonShape(ctx3, w, h, poly, true); // True = use Mosaic color
+        });
+
+        ctx3.fillStyle = '#333';
+        ctx3.font = '14px sans-serif';
+        ctx3.textAlign = 'center';
+        ctx3.fillText("Union of A & B", w/2, h/2);
+    }
+
+    function drawPolygonShape(ctx, w, h, poly, forceMosaicColor = false) {
+        // To draw the polygon properly based on lines, we can cheat slightly for this visual
+        // by pre-calculating the shape path or using clipping.
+        // For robustness in this demo, I will define the paths that represent the result of the intersection.
+        
+        ctx.beginPath();
+        if (poly.name === 'A') {
+            // Triangle Top Left
+            ctx.moveTo(0, 0);
+            ctx.lineTo(w*0.5, 0);
+            ctx.lineTo(0, h*0.5);
+            ctx.closePath();
+        } else {
+            // Triangle Bottom Right
+            ctx.moveTo(w, h);
+            ctx.lineTo(w*0.5, h);
+            ctx.lineTo(w, h*0.5);
+            ctx.closePath();
+        }
+
+        ctx.fillStyle = forceMosaicColor ? '#8e44ad' : poly.color;
+        ctx.fill();
+    }
+
+    // Init
+    setTimeout(resizeAll, 100);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part 5: Chi-Square (Deep Dive)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #8e44ad; /* Purple for Significance */
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f39c12;
+            --bg: #f8f9fa;
+            --panel: #ffffff;
+            --text-main: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: var(--panel);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+
+        h1, h2 { color: var(--primary); margin-top: 0; }
+        h1 { border-bottom: 2px solid #eee; padding-bottom: 15px; }
+
+        .explanation {
+            background: #eaf2f8;
+            border-left: 5px solid var(--accent);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 1.05rem;
+        }
+
+        /* --- INTERACTIVE GRID STYLES --- */
+        .matrix-container {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr;
+            gap: 10px;
+            margin: 20px 0;
+            align-items: center;
+        }
+
+        .matrix-header {
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            background: #dfe6e9;
+            border-radius: 6px;
+        }
+
+        .matrix-cell {
+            position: relative;
+            background: #fff;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .matrix-cell:hover { border-color: var(--accent); }
+        .matrix-cell.highlight { background: rgba(142, 68, 173, 0.1); border-color: var(--accent); }
+
+        .val-obs { font-size: 1.8rem; font-weight: bold; color: var(--primary); display: block; }
+        .val-exp { 
+            font-size: 0.9rem; 
+            color: #7f8c8d; 
+            display: block; 
+            margin-top: 5px; 
+            border-top: 1px dashed #ccc; 
+            padding-top: 5px; 
+        }
+
+        /* SLIDER CONTROLS */
+        .slider-group {
+            background: #f1f2f6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        input[type=range] { flex-grow: 1; cursor: pointer; }
+
+        /* CALCULATION PIPELINE */
+        .calc-pipeline {
+            display: flex;
+            justify-content: space-between;
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .calc-step { text-align: center; opacity: 0.5; transition: opacity 0.3s; }
+        .calc-step.active { opacity: 1; font-weight: bold; color: var(--accent); transform: scale(1.1); }
+
+        /* RESULT BADGE */
+        .result-box {
+            text-align: center;
+            padding: 20px;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            transition: background 0.5s;
+        }
+
+        /* HIGHLIGHT HELPERS */
+        .highlight-text { background: yellow; padding: 2px 4px; border-radius: 2px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Part 5: The "Surprise" Test (Chi-Square)</h1>
+        
+        <div class="explanation">
+            <strong>The Problem:</strong> Sometimes we see a pattern, but it's just a coincidence.
+            <br><br>
+            <strong>The Solution:</strong> The Chi-Square ($\chi^2$) test measures <em>"How surprised should we be?"</em> 
+            It compares what we <strong>Actually Saw (Observed)</strong> vs. what we <strong>Should Have Seen (Expected)</strong> if everything was random.
+        </div>
+
+        <h3>Scenario: Coffee & Cake</h3>
+        <p>Imagine we track 100 customers. Does buying <strong>Coffee</strong> make someone more likely to buy <strong>Cake</strong>?</p>
+    </div>
+
+    <div class="container">
+        <h2>1. Observed vs. Expected</h2>
+        <p>Drag the slider below to shift reality from "Totally Random" to "Highly Biased". Watch how the numbers change.</p>
+
+        <div class="slider-group">
+            <span style="font-weight:bold;">Pattern Strength:</span>
+            <span>Random</span>
+            <input type="range" id="biasSlider" min="0" max="45" value="0" oninput="chiSim.updateFromSlider(this.value)">
+            <span>Obvious</span>
+        </div>
+
+        <div class="matrix-container">
+            <div></div> <div class="matrix-header">Bought Cake</div>
+            <div class="matrix-header">No Cake</div>
+
+            <div class="matrix-header" style="height:100%; display:flex; align-items:center; justify-content:center;">Bought<br>Coffee</div>
+            <div class="matrix-cell" id="cell_11">
+                <span class="val-obs" id="obs_11">25</span>
+                <span class="val-exp" id="exp_11">Expected: 25.0</span>
+            </div>
+            <div class="matrix-cell" id="cell_12">
+                <span class="val-obs" id="obs_12">25</span>
+                <span class="val-exp" id="exp_12">Expected: 25.0</span>
+            </div>
+
+            <div class="matrix-header" style="height:100%; display:flex; align-items:center; justify-content:center;">No<br>Coffee</div>
+            <div class="matrix-cell" id="cell_21">
+                <span class="val-obs" id="obs_21">25</span>
+                <span class="val-exp" id="exp_21">Expected: 25.0</span>
+            </div>
+            <div class="matrix-cell" id="cell_22">
+                <span class="val-obs" id="obs_22">25</span>
+                <span class="val-exp" id="exp_22">Expected: 25.0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>2. Wait, where does "Expected" come from?</h2>
+        <p>This is the most critical part. The "Expected" number is calculated by assuming <strong>Independence</strong> (Randomness).</p>
+        
+        <div class="explanation" style="background:#fff; border:1px solid #ccc; border-left:5px solid #2c3e50;">
+            <p style="margin:0; text-align:center; font-family:'Times New Roman', serif; font-size:1.3rem;">
+                Expected Value = $\frac{\text{Row Total} \times \text{Column Total}}{\text{Grand Total}}$
+            </p>
+        </div>
+        
+        <p><strong>Try it:</strong> In the grid above, notice that even as you change the observed numbers, the totals (Row/Col) stay constant at 50/50. 
+        <br>Since 50% of people bought Coffee, and 50% bought Cake, random chance says $0.5 \times 0.5 = 0.25$ (25 people) should buy both.</p>
+    </div>
+
+    <div class="container">
+        <h2>3. Calculating the "Surprise Score" ($\chi^2$)</h2>
+        <p>We look at every single cell and ask: <em>"How far off is this from the Expected value?"</em></p>
+
+        <div class="calc-pipeline" id="calc-pipeline">
+            <div class="calc-step" id="step-diff">Step 1: Difference<br>(O - E)</div>
+            <div style="align-self:center;">➜</div>
+            <div class="calc-step" id="step-sq">Step 2: Square it<br>(O - E)²</div>
+            <div style="align-self:center;">➜</div>
+            <div class="calc-step" id="step-norm">Step 3: Normalize<br>÷ Expected</div>
+            <div style="align-self:center;">➜</div>
+            <div class="calc-step" id="step-sum">Step 4: Sum All<br>= χ²</div>
+        </div>
+
+        <div class="result-box" id="final-result">
+            Chi-Square Score: 0.00 <br>
+            <span style="font-size:0.9rem; opacity:0.9;">(Interpretation: Perfectly Random)</span>
+        </div>
+
+        <div class="explanation">
+            <strong>The Rule of Thumb:</strong><br>
+            If $\chi^2 > 3.84$, the result is <strong>Significant</strong> (p < 0.05).<br>
+            This means the pattern is strong enough that it's probably NOT luck.
+        </div>
+    </div>
+
+<script>
+    const chiSim = {
+        // We start with a perfectly balanced 100-person sample
+        // Total = 100. Row Totals = 50/50. Col Totals = 50/50.
+        // Expected is ALWAYS 25 for all cells in this simplified demo.
+        
+        obs: { r1c1: 25, r1c2: 25, r2c1: 25, r2c2: 25 },
+        exp: { r1c1: 25, r1c2: 25, r2c1: 25, r2c2: 25 }, // Fixed for this specific teaching scenario
+        
+        updateFromSlider(bias) {
+            // Bias shifts counts from "Random" (25) to "Correlated"
+            // If Bias increases, People who buy Coffee (R1) also buy Cake (C1).
+            // So R1C1 goes UP. R1C2 goes DOWN (to keep row total 50).
+            // R2C1 goes DOWN. R2C2 goes UP.
+            
+            const b = parseInt(bias);
+            
+            this.obs.r1c1 = 25 + b;
+            this.obs.r1c2 = 25 - b;
+            
+            this.obs.r2c1 = 25 - b;
+            this.obs.r2c2 = 25 + b;
+            
+            this.updateUI();
+        },
+        
+        updateUI() {
+            // 1. Update Grid Numbers
+            document.getElementById('obs_11').innerText = this.obs.r1c1;
+            document.getElementById('obs_12').innerText = this.obs.r1c2;
+            document.getElementById('obs_21').innerText = this.obs.r2c1;
+            document.getElementById('obs_22').innerText = this.obs.r2c2;
+            
+            // 2. Calculate Chi Square
+            let totalChi = 0;
+            const cells = ['r1c1', 'r1c2', 'r2c1', 'r2c2'];
+            const ids = ['11', '12', '21', '22'];
+            
+            let maxDiff = 0;
+
+            cells.forEach((k, i) => {
+                const O = this.obs[k];
+                const E = this.exp[k];
+                const diff = O - E;
+                const sq = diff * diff;
+                const contribution = sq / E;
+                
+                totalChi += contribution;
+                if(Math.abs(diff) > maxDiff) maxDiff = Math.abs(diff);
+
+                // Visual Feedback: Color the cells based on deviation
+                const cellEl = document.getElementById('cell_' + ids[i]);
+                const intensity = Math.min(Math.abs(diff) / 20, 1); // Cap at 1
+                
+                if(diff > 0) {
+                    cellEl.style.backgroundColor = `rgba(39, 174, 96, ${intensity * 0.3})`; // Greenish for "More than expected"
+                    cellEl.style.borderColor = `rgba(39, 174, 96, ${intensity + 0.2})`;
+                } else if (diff < 0) {
+                    cellEl.style.backgroundColor = `rgba(192, 57, 43, ${intensity * 0.3})`; // Reddish for "Less than expected"
+                    cellEl.style.borderColor = `rgba(192, 57, 43, ${intensity + 0.2})`;
+                } else {
+                    cellEl.style.backgroundColor = "#fff";
+                    cellEl.style.borderColor = "#bdc3c7";
+                }
+            });
+
+            // 3. Update Result Box
+            const resBox = document.getElementById('final-result');
+            resBox.innerHTML = `Chi-Square Score: <strong>${totalChi.toFixed(2)}</strong><br>`;
+            
+            if(totalChi > 10) {
+                resBox.style.background = "#27ae60"; // Strong Green
+                resBox.innerHTML += "<span style='font-size:0.9rem'>Conclusion: <strong>HIGHLY SIGNIFICANT</strong> (Definite Pattern)</span>";
+            } else if (totalChi > 3.84) {
+                resBox.style.background = "#f1c40f"; // Warning Yellow/Orange
+                resBox.style.color = "#2c3e50";
+                resBox.innerHTML += "<span style='font-size:0.9rem'>Conclusion: <strong>SIGNIFICANT</strong> (Likely Pattern)</span>";
+            } else {
+                resBox.style.background = "#2c3e50"; // Neutral Blue
+                resBox.style.color = "#fff";
+                resBox.innerHTML += "<span style='font-size:0.9rem'>Conclusion: <strong>INSIGNIFICANT</strong> (Just Random Noise)</span>";
+            }
+
+            // 4. Animate Pipeline Steps based on intensity
+            const steps = ['step-diff', 'step-sq', 'step-norm', 'step-sum'];
+            steps.forEach(s => document.getElementById(s).classList.remove('active'));
+            
+            if(totalChi > 0.1) document.getElementById('step-diff').classList.add('active');
+            if(totalChi > 1.0) document.getElementById('step-sq').classList.add('active');
+            if(totalChi > 2.0) document.getElementById('step-norm').classList.add('active');
+            if(totalChi > 3.84) document.getElementById('step-sum').classList.add('active');
+        }
+    };
+
+    // Initial Draw
+    chiSim.updateFromSlider(0);
+
+</script>
+</body>
+</html>

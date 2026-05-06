@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Recursive Cutter | Decision Tree Logic</title>
+    <style>
+        :root {
+            --primary: #27ae60; /* Green for trees/growth */
+            --accent: #2c3e50;
+            --highlight: #e74c3c;
+            --box-highlight: rgba(241, 196, 15, 0.4); /* Yellow box */
+            --bg: #f8fafc;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin-top: 0; color: var(--accent); text-align: center; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 20px; }
+
+        /* VISUALIZATION STAGE */
+        .stage {
+            position: relative;
+            height: 450px;
+            background: #fff;
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        canvas { width: 100%; height: 100%; display: block; }
+
+        /* CONTROLS */
+        .controls-area {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        .progress-bar {
+            display: flex;
+            gap: 5px;
+        }
+        .step-dot {
+            width: 12px; height: 12px;
+            background: #bdc3c7;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+        .step-dot.active { background: var(--primary); transform: scale(1.2); }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            background: var(--primary);
+            color: white;
+            transition: transform 0.2s;
+        }
+        button:hover { background: #219150; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        /* NARRATIVE BOX */
+        .narrative {
+            margin-top: 20px;
+            padding: 20px;
+            border-left: 5px solid var(--primary);
+            background: #e8f8f5;
+            color: #145a32;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+        }
+
+        .logic-display {
+            font-family: monospace;
+            background: rgba(255,255,255,0.7);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #c0392b;
+            font-weight: bold;
+        }
+        
+        .projection-note {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 10px;
+            text-align: right;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>The Recursive Cutter</h1>
+    <div class="subtitle">"Combine many thresholds to get boxes."</div>
+
+    <div class="stage" id="stage">
+        <canvas id="treeCanvas"></canvas>
+    </div>
+
+    <div class="controls-area">
+        <button id="btn-prev" onclick="changeStep(-1)" disabled>Previous</button>
+        <div class="progress-bar" id="progressBar">
+            </div>
+        <button id="btn-next" onclick="changeStep(1)">Next Step</button>
+    </div>
+
+    <div class="narrative" id="narrative-text">
+        </div>
+    
+    <div class="projection-note">
+        Note: This 2D picture is a "cartoon" for high-dimensional data.
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('treeCanvas');
+    const ctx = canvas.getContext('2d');
+    const stage = document.getElementById('stage');
+
+    // Canvas scaling
+    const dpr = window.devicePixelRatio || 1;
+    let w, h;
+
+    // State
+    let currentStep = 0;
+    const totalSteps = 4; // 0 to 4
+    
+    // Data Points (Static for consistency)
+    const points = [];
+    const seed = 123; // Fixed seed concept
+    
+    // Generate some "Clusters"
+    function generateData() {
+        for(let i=0; i<30; i++) {
+            // Cluster A (Top Left)
+            points.push({x: 0.2 + Math.random()*0.2, y: 0.2 + Math.random()*0.2, type: 'A'});
+            // Cluster B (Bottom Right)
+            points.push({x: 0.6 + Math.random()*0.2, y: 0.6 + Math.random()*0.2, type: 'B'});
+            // Noise
+            points.push({x: Math.random(), y: Math.random(), type: 'N'});
+        }
+    }
+
+    // Step Logic
+    // Step 0: Raw Data
+    // Step 1: Split X (Vertical)
+    // Step 2: Split Left Region on Y (Horizontal)
+    // Step 3: Split Right Region on Y (Horizontal)
+    // Step 4: Highlight Box
+    
+    const steps = [
+        {
+            title: "0. The Raw Data",
+            desc: "Here is our data in 2D space. We need to separate the groups. <br>A Decision Tree doesn't try to draw a curve. It asks a series of simple questions."
+        },
+        {
+            title: "1. The First Cut (1D Threshold)",
+            desc: "The tree searches for the best single split. It finds <code>x = 0.5</code>.<br>This is a <strong>1D Threshold</strong>. It ignores Y completely. It splits the world into Left and Right."
+        },
+        {
+            title: "2. Divide and Conquer (Left)",
+            desc: "Now look ONLY at the Left side. The tree asks another question: <code>y = 0.5</code>.<br>Crucially, this line stops at the boundary. We are chopping up the previous slice."
+        },
+        {
+            title: "3. Divide and Conquer (Right)",
+            desc: "Now look at the Right side. It might pick a totally different threshold, like <code>y = 0.3</code>.<br>See how the lines are 'disconnecting'? We are forming a grid of regions."
+        },
+        {
+            title: "4. The 'Box' Revealed",
+            desc: "Why do we call them boxes? Look at the highlighted yellow area.<br>It is defined by: <span class='logic-display'>x < 0.5 AND y > 0.5</span>.<br>Combining simple 1D thresholds creates 2D boxes."
+        }
+    ];
+
+    function init() {
+        generateData();
+        resize();
+        setupControls();
+        update();
+    }
+
+    function resize() {
+        w = stage.clientWidth;
+        h = stage.clientHeight;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.scale(dpr, dpr);
+        draw();
+    }
+    window.addEventListener('resize', resize);
+
+    function setupControls() {
+        const bar = document.getElementById('progressBar');
+        bar.innerHTML = '';
+        for(let i=0; i<=totalSteps; i++) {
+            let d = document.createElement('div');
+            d.className = 'step-dot' + (i === 0 ? ' active' : '');
+            d.id = 'dot-'+i;
+            bar.appendChild(d);
+        }
+    }
+
+    function changeStep(delta) {
+        currentStep += delta;
+        if(currentStep < 0) currentStep = 0;
+        if(currentStep > totalSteps) currentStep = totalSteps;
+        update();
+    }
+
+    function update() {
+        // UI
+        document.getElementById('btn-prev').disabled = currentStep === 0;
+        document.getElementById('btn-next').disabled = currentStep === totalSteps;
+        document.querySelectorAll('.step-dot').forEach((d, i) => {
+            d.className = 'step-dot' + (i <= currentStep ? ' active' : '');
+        });
+
+        const s = steps[currentStep];
+        document.getElementById('narrative-text').innerHTML = `
+            <div>
+                <strong style="font-size: 1.1rem; display:block; margin-bottom:5px;">${s.title}</strong>
+                ${s.desc}
+            </div>
+        `;
+
+        draw();
+    }
+
+    // --- DRAWING ENGINE ---
+    function draw() {
+        ctx.clearRect(0,0,w,h);
+
+        // Coordinates
+        const midX = w * 0.5;
+        const midY = h * 0.5;
+        const lowerY = h * 0.7; // For step 3
+
+        // --- STEP 4 HIGHLIGHT (Draw first so it's behind) ---
+        if(currentStep === 4) {
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--box-highlight');
+            // Box: Left side (x < 0.5), Top side (y < 0.5 visually, but y > 0.5 math)
+            // Wait, canvas Y increases downwards.
+            // Let's assume math y > 0.5 means visual top half.
+            ctx.fillRect(0, 0, midX, midY); 
+        }
+
+        // --- DRAW SPLITS ---
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+
+        // Split 1: Vertical (Step 1+)
+        if(currentStep >= 1) {
+            ctx.strokeStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.moveTo(midX, 0);
+            ctx.lineTo(midX, h);
+            ctx.stroke();
+
+            // Label
+            drawLabel("x = 0.5", midX + 5, h - 10, false);
+        }
+
+        // Split 2: Horizontal Left (Step 2+)
+        if(currentStep >= 2) {
+            ctx.strokeStyle = '#e67e22'; // Orange for secondary
+            ctx.beginPath();
+            ctx.moveTo(0, midY);
+            ctx.lineTo(midX, midY); // Stops at the first split!
+            ctx.stroke();
+            
+            drawLabel("y = 0.5", 5, midY - 5, true);
+        }
+
+        // Split 3: Horizontal Right (Step 3+)
+        if(currentStep >= 3) {
+            ctx.strokeStyle = '#9b59b6'; // Purple for tertiary
+            ctx.beginPath();
+            ctx.moveTo(midX, lowerY);
+            ctx.lineTo(w, lowerY);
+            ctx.stroke();
+            
+            drawLabel("y = 0.3", midX + 5, lowerY - 5, true);
+        }
+
+        // --- DRAW POINTS ---
+        points.forEach(p => {
+            const px = p.x * w;
+            const py = p.y * h;
+            
+            ctx.beginPath();
+            ctx.arc(px, py, 6, 0, Math.PI*2);
+            
+            if (p.type === 'A') ctx.fillStyle = '#3498db';
+            else if (p.type === 'B') ctx.fillStyle = '#e74c3c';
+            else ctx.fillStyle = '#95a5a6';
+            
+            ctx.fill();
+        });
+    }
+
+    function drawLabel(text, x, y, isHorizontal) {
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText(text, x, y);
+    }
+
+    init();
+
+</script>
+</body>
+</html>

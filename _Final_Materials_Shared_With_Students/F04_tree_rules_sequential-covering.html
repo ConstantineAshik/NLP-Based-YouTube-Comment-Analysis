@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rules & Sequential Covering</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #f1c40f;
+            --class-a: rgba(52, 152, 219, 0.8); /* Blue */
+            --class-b: rgba(230, 126, 34, 0.8);  /* Orange */
+            --bg: #f8fafc;
+            --text: #333;
+            --covered: #bdc3c7; /* Gray for covered points */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* NAVIGATION (Global System) */
+        header {
+            background: var(--primary);
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+        nav a:hover { color: var(--accent); }
+
+        /* MAIN LAYOUT */
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .section-title {
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        /* PANELS */
+        .panel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .panel-grid { grid-template-columns: 1fr; }
+        }
+
+        .visualization-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #ddd;
+        }
+
+        canvas {
+            background: #eee;
+            border-radius: 4px;
+            cursor: crosshair;
+            width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+
+        /* RULE LIST STYLES */
+        .rule-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .rule-item {
+            background: #f1f2f6;
+            margin-bottom: 8px;
+            padding: 10px;
+            border-left: 5px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .rule-item.active {
+            background: #fff8e1; /* Light yellow */
+            border-left-color: var(--accent);
+            transform: scale(1.02);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-weight: bold;
+        }
+
+        .rule-item .keyword { color: #8e44ad; font-weight: bold; }
+        .rule-item .condition { color: #2980b9; }
+        .rule-item .prediction { color: #c0392b; font-weight: bold; }
+
+        /* CONTROLS & STATS */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #34495e; }
+        
+        .btn-reset { background: #95a5a6; color: white; }
+        .btn-reset:hover { background: #7f8c8d; }
+
+        .btn-disabled { background: #ccc; cursor: not-allowed; }
+
+        .stats-panel {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        details {
+            background: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav>
+            <a href="index.html">Foundations</a>
+            <a href="high_dim.html">Decision Trees</a>
+            <a href="tree_box_maker.html">Box Maker</a>
+            <a href="neural_net.html">Neural Nets</a>
+            <a href="fs_and_splits_lab.html">Feature & Split Lab</a>
+            <a href="tree_rules_and_covering.html" style="color: #f1c40f;">Rules & Covering</a>
+            <a href="nbayes_and_metrics_lab.html">Naïve Bayes & Metrics</a>
+            <a href="validation_strategies_lab.html">Validation</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        
+        <details>
+            <summary>Theory: From Trees to Rules</summary>
+            <p>Decision Trees and Rule-Based Classifiers are closely related, but they interpret space differently.</p>
+            <ul>
+                <li><strong>Decision Tree:</strong> Uses a "Divide and Conquer" strategy. It cuts the whole space into smaller pieces until pure. Every point belongs to exactly one leaf.</li>
+                <li><strong>Sequential Covering (Rule Lists):</strong> Uses a "Separate and Conquer" strategy. It finds one rule that covers a chunk of "easy" points, removes them (peels them off), and then looks at what is left.</li>
+            </ul>
+        </details>
+
+        <h2 class="section-title">Panel A: The Tree-to-Rule X-Ray</h2>
+        <p>Hover over the canvas to see how geometric regions translate into logical rules.</p>
+        
+        <div class="panel-grid">
+            <div class="visualization-card">
+                <canvas id="canvasA" width="400" height="400"></canvas>
+                <p style="text-align:center; font-size:0.8rem; color:#777;">Move mouse over regions</p>
+            </div>
+
+            <div class="visualization-card">
+                <h3>Logic Interpreter</h3>
+                <ul class="rule-list" id="ruleListA">
+                    </ul>
+            </div>
+        </div>
+
+        <h2 class="section-title">Panel B: Sequential Covering Animator</h2>
+        <p>Simulation of algorithms like RIPPER or CN2. We find a rule, "cover" (remove) the points, and repeat.</p>
+
+        <div class="stats-panel">
+            <span id="statRules">Rules: 0</span>
+            <span id="statCoverage">Coverage: 0%</span>
+            <span id="statRemaining">Remaining: 100%</span>
+        </div>
+
+        <div class="panel-grid">
+            <div class="visualization-card">
+                <div class="controls">
+                    <button id="btnFindRule" class="btn-primary">Find Next Rule</button>
+                    <button id="btnReset" class="btn-reset">Reset Data</button>
+                </div>
+                <canvas id="canvasB" width="400" height="400"></canvas>
+            </div>
+
+            <div class="visualization-card">
+                <h3>Learned Rule List</h3>
+                <p style="font-size:0.85rem; color:#666;">Rules are applied top-to-bottom (ordered list).</p>
+                <ul class="rule-list" id="ruleListB">
+                    <li class="rule-item" style="color:#777;">No rules learned yet...</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /* =========================================
+           SHARED UTILITIES
+           ========================================= */
+        const COLOR_A = 'rgba(52, 152, 219, 0.8)';
+        const COLOR_B = 'rgba(230, 126, 34, 0.8)';
+        const COLOR_COVERED = '#bdc3c7';
+        
+        function generateData(count) {
+            let data = [];
+            // Create a few clusters to make rules meaningful
+            // Cluster 1: Top Left (Class A)
+            for(let i=0; i<count/3; i++) {
+                data.push({
+                    x: Math.random() * 0.4 + 0.05,
+                    y: Math.random() * 0.4 + 0.05,
+                    label: 0, // A
+                    covered: false
+                });
+            }
+            // Cluster 2: Bottom Right (Class A)
+            for(let i=0; i<count/3; i++) {
+                data.push({
+                    x: Math.random() * 0.4 + 0.55,
+                    y: Math.random() * 0.4 + 0.55,
+                    label: 0, // A
+                    covered: false
+                });
+            }
+            // Background Noise (Class B)
+            for(let i=0; i<count/3; i++) {
+                data.push({
+                    x: Math.random(),
+                    y: Math.random(),
+                    label: 1, // B
+                    covered: false
+                });
+            }
+            return data;
+        }
+
+        /* =========================================
+           PANEL A: TREE X-RAY LOGIC
+           ========================================= */
+        const canvasA = document.getElementById('canvasA');
+        const ctxA = canvasA.getContext('2d');
+        const listA = document.getElementById('ruleListA');
+
+        // Hardcoded Tree Structure for Demo
+        // Split 1: x < 0.5
+        //    Split 2: y < 0.5 -> Class A
+        //    Else: Class B
+        // Else (x >= 0.5)
+        //    Split 3: y > 0.6 -> Class A
+        //    Else: Class B
+        
+        const treeRegions = [
+            { id: 1, xMin: 0, xMax: 0.5, yMin: 0, yMax: 0.5, class: 'A', rule: "IF (x < 0.5) AND (y < 0.5) THEN Class = Blue" },
+            { id: 2, xMin: 0, xMax: 0.5, yMin: 0.5, yMax: 1.0, class: 'B', rule: "IF (x < 0.5) AND (y >= 0.5) THEN Class = Orange" },
+            { id: 3, xMin: 0.5, xMax: 1.0, yMin: 0.6, yMax: 1.0, class: 'A', rule: "IF (x >= 0.5) AND (y > 0.6) THEN Class = Blue" },
+            { id: 4, xMin: 0.5, xMax: 1.0, yMin: 0, yMax: 0.6, class: 'B', rule: "IF (x >= 0.5) AND (y <= 0.6) THEN Class = Orange" }
+        ];
+
+        // Generate static data for A
+        const dataA = [];
+        for(let i=0; i<200; i++) {
+            let x = Math.random();
+            let y = Math.random();
+            let label = 1; // Default B
+            
+            // Assign true label based on regions
+            if(x < 0.5) {
+                if(y < 0.5) label = 0;
+            } else {
+                if(y > 0.6) label = 0;
+            }
+            // Add some noise
+            if(Math.random() < 0.05) label = 1 - label;
+            
+            dataA.push({x, y, label});
+        }
+
+        function drawPanelA(highlightId = null) {
+            const w = canvasA.width;
+            const h = canvasA.height;
+            ctxA.clearRect(0,0,w,h);
+
+            // Draw Regions borders
+            ctxA.strokeStyle = "#ccc";
+            ctxA.setLineDash([5, 5]);
+            
+            // X=0.5
+            ctxA.beginPath(); ctxA.moveTo(w*0.5, 0); ctxA.lineTo(w*0.5, h); ctxA.stroke();
+            // Y=0.5 (Left side)
+            ctxA.beginPath(); ctxA.moveTo(0, h*0.5); ctxA.lineTo(w*0.5, h*0.5); ctxA.stroke();
+            // Y=0.6 (Right side)
+            ctxA.beginPath(); ctxA.moveTo(w*0.5, h*0.4); ctxA.lineTo(w, h*0.4); ctxA.stroke(); // Canvas Y is inverted relative to math usually, but let's stick to 0=top
+
+            ctxA.setLineDash([]);
+
+            // Draw Highlight Rect
+            if(highlightId !== null) {
+                const region = treeRegions.find(r => r.id === highlightId);
+                if(region) {
+                    ctxA.fillStyle = "rgba(241, 196, 15, 0.3)"; // Gold highlight
+                    ctxA.fillRect(
+                        region.xMin * w,
+                        region.yMin * h,
+                        (region.xMax - region.xMin) * w,
+                        (region.yMax - region.yMin) * h
+                    );
+                    ctxA.strokeStyle = "#f1c40f";
+                    ctxA.lineWidth = 3;
+                    ctxA.strokeRect(
+                        region.xMin * w,
+                        region.yMin * h,
+                        (region.xMax - region.xMin) * w,
+                        (region.yMax - region.yMin) * h
+                    );
+                }
+            }
+
+            // Draw Points
+            dataA.forEach(p => {
+                ctxA.fillStyle = p.label === 0 ? COLOR_A : COLOR_B;
+                ctxA.beginPath();
+                ctxA.arc(p.x * w, p.y * h, 4, 0, Math.PI*2);
+                ctxA.fill();
+            });
+        }
+
+        function renderRuleListA(activeId) {
+            listA.innerHTML = '';
+            treeRegions.forEach(r => {
+                const li = document.createElement('li');
+                li.className = `rule-item ${r.id === activeId ? 'active' : ''}`;
+                // Rudimentary parsing for styling
+                let html = r.rule
+                    .replace("IF", "<span class='keyword'>IF</span>")
+                    .replace("THEN", "<span class='keyword'>THEN</span>")
+                    .replace("AND", "<span class='keyword'>AND</span>");
+                li.innerHTML = html;
+                listA.appendChild(li);
+            });
+        }
+
+        // Interaction A
+        canvasA.addEventListener('mousemove', (e) => {
+            const rect = canvasA.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+
+            let activeRegion = null;
+            
+            // Find which region we are in
+            for(let r of treeRegions) {
+                if(x >= r.xMin && x < r.xMax && y >= r.yMin && y < r.yMax) {
+                    activeRegion = r.id;
+                    break;
+                }
+            }
+
+            drawPanelA(activeRegion);
+            renderRuleListA(activeRegion);
+        });
+
+        // Init Panel A
+        drawPanelA(null);
+        renderRuleListA(null);
+
+
+        /* =========================================
+           PANEL B: SEQUENTIAL COVERING LOGIC
+           ========================================= */
+        const canvasB = document.getElementById('canvasB');
+        const ctxB = canvasB.getContext('2d');
+        const btnFindRule = document.getElementById('btnFindRule');
+        const btnReset = document.getElementById('btnReset');
+        const ruleListB = document.getElementById('ruleListB');
+        
+        // State B
+        let dataB = generateData(300);
+        let learnedRules = [];
+        
+        function drawPanelB() {
+            const w = canvasB.width;
+            const h = canvasB.height;
+            ctxB.clearRect(0,0,w,h);
+
+            // Draw Points (Covered first to be in back)
+            // Covered
+            dataB.filter(p => p.covered).forEach(p => {
+                ctxB.fillStyle = COLOR_COVERED;
+                ctxB.beginPath();
+                ctxB.arc(p.x * w, p.y * h, 3, 0, Math.PI*2);
+                ctxB.fill();
+            });
+
+            // Active
+            dataB.filter(p => !p.covered).forEach(p => {
+                ctxB.fillStyle = p.label === 0 ? COLOR_A : COLOR_B;
+                ctxB.beginPath();
+                ctxB.arc(p.x * w, p.y * h, 4, 0, Math.PI*2);
+                ctxB.fill();
+            });
+
+            // Draw Learned Rules (Rectangles)
+            ctxB.lineWidth = 2;
+            learnedRules.forEach((rule, index) => {
+                ctxB.strokeStyle = rule.class === 0 ? "#2980b9" : "#d35400";
+                
+                // If it's the latest rule, highlight it
+                if(index === learnedRules.length - 1) {
+                    ctxB.lineWidth = 4;
+                    ctxB.shadowBlur = 10;
+                    ctxB.shadowColor = "#333";
+                } else {
+                    ctxB.lineWidth = 2;
+                    ctxB.shadowBlur = 0;
+                }
+
+                ctxB.strokeRect(
+                    rule.xMin * w,
+                    rule.yMin * h,
+                    (rule.xMax - rule.xMin) * w,
+                    (rule.yMax - rule.yMin) * h
+                );
+                
+                // Label the box
+                ctxB.fillStyle = "#333";
+                ctxB.font = "12px sans-serif";
+                ctxB.shadowBlur = 0;
+                ctxB.fillText(`R${index+1}`, rule.xMin * w + 5, rule.yMin * h + 15);
+            });
+        }
+
+        function updateStatsB() {
+            const coveredCount = dataB.filter(p => p.covered).length;
+            const total = dataB.length;
+            const pct = Math.round((coveredCount / total) * 100);
+            
+            document.getElementById('statRules').innerText = `Rules: ${learnedRules.length}`;
+            document.getElementById('statCoverage').innerText = `Coverage: ${pct}%`;
+            document.getElementById('statRemaining').innerText = `Remaining: ${100 - pct}%`;
+
+            if(pct > 95) {
+                btnFindRule.disabled = true;
+                btnFindRule.innerText = "Covered!";
+                btnFindRule.classList.add('btn-disabled');
+            } else {
+                btnFindRule.disabled = false;
+                btnFindRule.innerText = "Find Next Rule";
+                btnFindRule.classList.remove('btn-disabled');
+            }
+        }
+
+        function updateRuleListB() {
+            ruleListB.innerHTML = '';
+            if(learnedRules.length === 0) {
+                ruleListB.innerHTML = '<li class="rule-item" style="color:#777;">No rules learned yet...</li>';
+                return;
+            }
+
+            learnedRules.forEach((r, i) => {
+                const li = document.createElement('li');
+                li.className = 'rule-item';
+                const clsName = r.class === 0 ? "Blue" : "Orange";
+                li.innerHTML = `<strong>R${i+1}:</strong> IF ${r.xMin.toFixed(2)} < x < ${r.xMax.toFixed(2)} AND ${r.yMin.toFixed(2)} < y < ${r.yMax.toFixed(2)} THEN <span style="color:${r.class===0?'blue':'orange'}">${clsName}</span>`;
+                ruleListB.appendChild(li);
+            });
+            
+            // Add Default rule if nearly all covered
+            const covered = dataB.filter(p => p.covered).length;
+            if(covered/dataB.length > 0.95) {
+                const li = document.createElement('li');
+                li.className = 'rule-item';
+                li.innerHTML = `<strong>Else:</strong> Class = Orange (Majority of Noise)`;
+                ruleListB.appendChild(li);
+            }
+        }
+
+        // The "Algorithm"
+        // A greedy search for a bounding box that captures a dense cluster of remaining points of Class A
+        function findNextRule() {
+            const remaining = dataB.filter(p => !p.covered);
+            const remainingA = remaining.filter(p => p.label === 0);
+
+            if(remainingA.length === 0) {
+                // No more Class A to find
+                alert("No more significant Class Blue clusters found.");
+                btnFindRule.disabled = true;
+                return;
+            }
+
+            // Simple Heuristic: Pick a random point A, look for neighbors, form box
+            let bestRule = null;
+            let bestScore = -Infinity;
+
+            // Try 50 candidate boxes
+            for(let k=0; k<50; k++) {
+                // Pick random center point from remaining Class A
+                const seed = remainingA[Math.floor(Math.random() * remainingA.length)];
+                
+                // Random width/height between 0.1 and 0.3
+                const rw = 0.1 + Math.random() * 0.2;
+                const rh = 0.1 + Math.random() * 0.2;
+
+                const xMin = Math.max(0, seed.x - rw/2);
+                const xMax = Math.min(1, seed.x + rw/2);
+                const yMin = Math.max(0, seed.y - rh/2);
+                const yMax = Math.min(1, seed.y + rh/2);
+
+                // Score this box
+                let tp = 0; // True Positives (Captured A)
+                let fp = 0; // False Positives (Captured B) inside box, NOT previously covered
+                
+                remaining.forEach(p => {
+                    if(p.x >= xMin && p.x <= xMax && p.y >= yMin && p.y <= yMax) {
+                        if(p.label === 0) tp++;
+                        else fp++;
+                    }
+                });
+
+                // Heuristic Score: Density of A minus penalty for B
+                // We want high purity
+                let score = tp - (fp * 2); 
+
+                if(score > bestScore && tp > 0) {
+                    bestScore = score;
+                    bestRule = { xMin, xMax, yMin, yMax, class: 0 };
+                }
+            }
+
+            if(bestRule) {
+                learnedRules.push(bestRule);
+                
+                // Apply Rule: Mark points as covered
+                dataB.forEach(p => {
+                    if(!p.covered) {
+                        if(p.x >= bestRule.xMin && p.x <= bestRule.xMax && 
+                           p.y >= bestRule.yMin && p.y <= bestRule.yMax) {
+                            p.covered = true;
+                        }
+                    }
+                });
+                
+                drawPanelB();
+                updateStatsB();
+                updateRuleListB();
+            } else {
+                // Fallback if heuristics fail (should be rare with this data)
+                console.log("Solver stuck");
+            }
+        }
+
+        btnFindRule.addEventListener('click', findNextRule);
+        
+        btnReset.addEventListener('click', () => {
+            dataB = generateData(300);
+            learnedRules = [];
+            drawPanelB();
+            updateStatsB();
+            updateRuleListB();
+        });
+
+        // Init Panel B
+        drawPanelB();
+        updateStatsB();
+
+    </script>
+</body>
+</html>

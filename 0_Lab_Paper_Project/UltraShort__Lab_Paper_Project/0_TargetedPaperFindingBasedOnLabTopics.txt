@@ -1,0 +1,110 @@
+## PROMPT START
+
+## CONFIG (Fill these fields exactly; no extra text)
+DOMAIN\_NAME: "\<Social Media\>" YEAR\_START: 2024 YEAR\_END: 2025 INCLUDE\_2023\_OR\_EVEN\_BACKWARD\_YEARS\_IF\_TOO\_FEW: false \# set true only if you find \<10 qualifying papers TARGET\_PACK\_SIZE\_MIN: 10 TARGET\_PACK\_SIZE\_MAX: 15 SIMPLE\_METHODS: ["Apriori", "Association Rules", "K-Means", "DBSCAN", "TF-IDF", "PCA", "Sentiment Analysis", "N-gram Analysis", "Correlation Analysis", "Co-occurrence Analysis"]
+## SUPPORTED_DOMAINS (choose one in DOMAIN_NAME)
+
+Social Media (YouTube Analytics) | Education Technology (Online Learning/MOOCs)
+
+## DOMAIN_TASK_KEYWORDS (augment queries with 2–5 that fit your domain)
+
+* Social Media: comment analysis, caption-comment discrepancy, temporal trend detection, spam/noise detection, sentiment distribution, keyword co-occurrence, community engagement, vocabulary diversity
+* Education Technology: lecture content analysis, student sentiment, topic alignment, video engagement metrics, instructional video analysis
+
+---
+
+## HARD RULES (follow literally; break = fail)
+
+1. **No hallucinations.** No invented titles, venues, authors, results, or links.
+2. **Link requirement:** Every paper must have a **Canonical link** (publisher/DOI/official index) and, if available, an **Open-access link** (arXiv/PMC/institutional).
+If OA doesn’t exist, return `None`.
+3. **Year window:** Keep papers whose publication year is within **[YEAR_START, YEAR_END]**.
+Only include 2023 if `INCLUDE_2023_IF_TOO_FEW=true`.
+4. **Method filter:** The study must **use or benchmark** ≥1 item from **SIMPLE_METHODS** in the **main experiments**.
+5. **Application filter:** Real dataset/use-case aligned to **DOMAIN_NAME**. Simulated/toy-only → exclude.
+6. **Venue credibility:** Prefer journals/conferences from reputable publishers (IEEE/ACM/Springer/Nature/Elsevier/Wiley/MDPI/Frontiers/BMJ/AAAI, etc.). If uncertain, exclude and note why.
+7. **Verification:** Cross-check **title/authors/venue/year** across at least **two** sources (e.g., DOI page + Google Scholar).
+8. **Transparency:** Keep a **search log** and **exclusion list** with exact reasons.
+9. **Concise outputs:** Bullets over prose. No filler.
+10. **If any required field is unknown**, write `[Gap: ...]`—do not invent.
+---
+
+## SEARCH PROTOCOL (execute iteratively until you have TARGET_PACK_SIZE_MIN–MAX kept items)
+
+**Primary sources (order):** Google Scholar → DOI/Crossref → Publisher portals (IEEE/ACM/Elsevier/Springer/Wiley/MDPI/Nature/BMJ/Frontiers/AAAI) → arXiv/medRxiv (if peer-review missing) → Scopus/Dimensions (if available).
+**Compose at least 4 queries; example patterns (replace <DOMAIN> and add task keywords):**
+
+* `"<DOMAIN>" AND ("Apriori" OR "Association Rules" OR "K-Means" OR "DBSCAN" OR "TF-IDF") YEAR_START..YEAR_END`
+* `"<DOMAIN> analytics" AND ("sentiment analysis" OR "n-gram" OR "co-occurrence" OR "vocabulary diversity") YEAR_START..YEAR_END`
+* `"<DOMAIN> clustering" AND ("elbow method" OR "density-based" OR "noise detection" OR "PCA") YEAR_START..YEAR_END`
+* `"<DOMAIN>" AND ("correlation analysis" OR "temporal trends") AND ("comments" OR "captions") YEAR_START..YEAR_END`
+
+**Inclusion checklist (must pass all):**
+Year in range; correct domain; simple method present; credible venue; link resolves; metadata consistent.
+
+**Exclusion reasons (record verbatim):**
+Out of range; wrong domain; no simple method; toy/synthetic only; venue dubious; broken/mismatched link; duplicate.
+---
+
+## LINK VERIFICATION (run per kept candidate)
+
+1. Find **DOI** on publisher or via Crossref.
+2. **Canonical link priority:** Publisher landing page with DOI → DOI resolver (`https://doi.org/...`) → Serious index (IEEE Xplore, ACM DL).
+3. **Open-access:** arXiv/PMC/institutional **with identical title/authors/year**; if not identical, explain and prefer the publisher.
+4. Click through both links; confirm they open and match the paper.
+5. Record both URLs; use `None` if OA missing.
+---
+
+## RANKING & SELECTION (score 0–2 each; keep total ≥7)
+
+* **Simplicity fit** (uses ≥1 SIMPLE_METHODS centrally)
+* **Domain relevance** (clear, real use case aligned with YouTube/Social Media data)
+* **Rigor** (baselines/metrics/clear protocol)
+* **Reproducibility** (data/code/seeds or enough detail)
+* **Pedagogical value** (figures/tables easy to mirror)
+
+Resolve ties by favoring reproducibility and pedagogy.
+---
+
+## RETURN FORMAT (produce in this exact order)
+
+### A) **Aggregate summary** (1–2 sentences)
+
+One tight statement of what this year’s literature shows for **DOMAIN_NAME** using simple methods.
+### B) **Human-readable pack** (10–15 items; each ≤8 bullets)
+
+For each paper:
+
+* **Title (Year, Venue):**
+* **Authors:**
+* **Canonical link (publisher/DOI):**
+* **Open-access link (if any):**
+* **Domain task:**
+* **Simple methods used:**
+* **Dataset brief (size/source/public?):**
+* **Metrics reported:**
+* **Why it fits this course (Lab mapping):**
+* **Repro notes (code/seeds/protocol clues):**
+
+### C) **Machine-readable JSON** (exact field names)
+
+Return a single JSON array with objects:
+{ "title": "...", "year": 2025, "venue": "...", "authors": ["Last, First", "..."], "doi": "10.xxxx/xxxxx", "canonical\_url": "[https://doi.org/](https://doi.org/)....", "open\_access\_url": "[https://arxiv.org/abs/](https://arxiv.org/abs/)...." | null, "domain\_task": "...", "methods": ["Apriori", "K-Means"], "dataset": {"name": "...", "public": true|false, "size\_n": 12345}, "metrics": ["Support","Confidence","Silhouette Score"], "course\_fit": "Lab 3 (Itemsets), Lab 5 (Clustering)", "reproducibility": {"code": "url|null", "seeds": true|false, "split\_protocol": "..." }, "notes": "Any caveats or [Gap: ...]" }
+### D) **Search log & exclusions**
+"search\_log": [ {"engine":"Google Scholar","query":"...","timestamp":"YYYY-MM-DD","hits\_scanned": 50}, ... ], "exclusions": [ {"title":"...","reason":"no simple method"}, ... ]
+### E) **Course cross-walk (1 page)**
+
+Map paper numbers → Labs 1–6 with **specific figure/table** references to replicate.
+---
+
+## SELF-AUDIT BEFORE RETURN
+
+* Every `canonical_url` works and matches title/venue/year.
+* Metadata consistent across two sources.
+* Each paper uses at least one item from SIMPLE_METHODS in core results.
+* No duplicates.
+* `[Gap: ...]` only where truly unknown.
+
+---
+
+## PROMPT END

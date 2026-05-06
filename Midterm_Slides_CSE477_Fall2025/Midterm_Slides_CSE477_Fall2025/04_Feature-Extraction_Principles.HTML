@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infographic: Applied Data Mining</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e5e7eb; /* gray-200 */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 210mm;
+            height: 297mm;
+            margin: 2rem auto;
+            padding: 15mm 20mm;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .page-header, .page-footer {
+            width: calc(100% - 40mm);
+            position: absolute;
+            left: 20mm;
+        }
+
+        .page-header {
+            top: 10mm;
+            font-size: 0.8rem;
+            color: #4b5563; /* gray-600 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-footer {
+            bottom: 10mm;
+            font-size: 0.8rem;
+            color: #4b5563; /* gray-600 */
+            text-align: right;
+            counter-increment: page;
+        }
+
+        .page-footer::after {
+            content: "Page " counter(page);
+        }
+
+        .content {
+            flex-grow: 1;
+            padding-top: 15mm;
+            padding-bottom: 15mm;
+        }
+        
+        h1 { font-size: 2.5rem; font-weight: 700; color: #111827; }
+        h2 { font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-top: 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #38bdf8; }
+        h3 { font-size: 1.25rem; font-weight: 600; color: #374151; margin-top: 1rem; }
+        
+        .icon {
+            color: #38bdf8; /* sky-400 */
+            margin-right: 0.75rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                margin: 0;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+            .page:last-child {
+                page-break-after: auto;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-200">
+
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 1</span>
+            <span>Dataset Design & Feature Extraction</span>
+        </header>
+        <main class="content flex flex-col justify-center">
+            <div class="text-center mb-16">
+                <span class="text-lg font-semibold text-sky-500">Case Study</span>
+                <h1 class="leading-tight">From Visuals to Vectors</h1>
+                <p class="text-xl text-gray-600 mt-2">Analyzing and Comparing Music Video Clips</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h2 class="!border-sky-500">The Goal: Classification</h2>
+                    <p class="mt-4 text-gray-700">
+                        Our primary objective is to build a system that can automatically classify and compare short music video clips based on their visual content. We aim to distinguish between a "solo home practice" and a "staged band performance."
+                    </p>
+                </div>
+
+                <div>
+                    <h3 class="mt-0">🎯 Target & ⛓️ Constraints</h3>
+                    <ul class="space-y-4 mt-4 text-gray-700">
+                        <li class="flex items-start">
+                            <i class="fas fa-bullseye icon"></i>
+                            <div>
+                                <strong class="text-gray-800">Distinguish Clip Types:</strong> Create a system that can tell the difference between distinct scenes, like a bedroom practice vs. a live show.
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-cogs icon"></i>
+                            <div>
+                                <strong class="text-gray-800">Handle New Content:</strong> The system must be extensible to analyze unseen clips, such as one featuring only a vocalist.
+                            </div>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-lightbulb icon"></i>
+                            <div>
+                                <strong class="text-gray-800">Overcome Variability:</strong> The model must be robust against challenges like variable lighting, occlusions, and diverse environments.
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-12 p-6 bg-sky-50 border border-sky-200 rounded-lg text-center">
+                <h3 class="text-sky-800 !mt-0">🔑 Guiding Principle</h3>
+                <p class="text-lg text-sky-700 mt-2">
+                    <strong>Stable Schema, Flexible Values.</strong> Our data structure must be consistent, but able to represent missing or absent information cleanly without inventing data.
+                </p>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+
+    <hr/>
+
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 1</span>
+            <span>Dataset Design & Feature Extraction</span>
+        </header>
+        <main class="content">
+            <h2>Core Attributes: A Robust Foundation</h2>
+            <p class="text-gray-600 mt-2">These are task-agnostic features that provide a descriptive baseline for any video clip. This structure is designed to be comprehensive yet flexible.</p>
+            
+            <div class="grid grid-cols-2 gap-x-8 gap-y-4 mt-6">
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-id-card icon"></i>
+                    <div><strong class="text-gray-800">clip_id</strong> <span class="text-gray-500">(string)</span>: Unique identifier.</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-users icon"></i>
+                    <div><strong class="text-gray-800">people_count</strong> <span class="text-gray-500">(integer)</span>: Number of visible people.</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-guitar icon"></i>
+                    <div><strong class="text-gray-800">instrument_types</strong> <span class="text-gray-500">(set)</span>: Visible instruments.</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-map-marker-alt icon"></i>
+                    <div><strong class="text-gray-800">scene</strong> <span class="text-gray-500">(enum)</span>: Environment type (home, stage).</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-video icon"></i>
+                    <div><strong class="text-gray-800">camera_angle</strong> <span class="text-gray-500">(enum)</span>: Camera perspective.</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-sun icon"></i>
+                    <div><strong class="text-gray-800">brightness</strong> <span class="text-gray-500">(float)</span>: Average pixel intensity.</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-running icon"></i>
+                    <div><strong class="text-gray-800">motion_magnitude</strong> <span class="text-gray-500">(float)</span>: Frame-to-frame movement.</div>
+                </div>
+                <div class="flex items-center p-3 bg-gray-50 rounded-md">
+                    <i class="fas fa-exclamation-triangle icon"></i>
+                    <div><strong class="text-gray-800">quality_flag</strong> <span class="text-gray-500">(enum)</span>: Data quality notes (e.g., occluded).</div>
+                </div>
+            </div>
+
+            <h2 class="mt-10">Extensibility: Planning for the Future</h2>
+            <p class="text-gray-600 mt-2">Hard-coding every possible feature is brittle. We use linked tables for detailed or experimental data to avoid "schema churn" — constantly redesigning our main data table.</p>
+
+            <div class="flex justify-around items-start mt-8 space-x-6">
+                <div class="w-1/3 text-center">
+                    <div class="p-4 border-2 border-sky-500 bg-sky-50 rounded-lg shadow-md">
+                        <i class="fas fa-table text-2xl text-sky-600 mb-2"></i>
+                        <h3 class="!mt-0">Core Attributes</h3>
+                        <p class="text-sm text-gray-600">The stable foundation.</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-center justify-center pt-8 text-gray-400 text-4xl">
+                    <i class="fas fa-long-arrow-alt-right"></i>
+                </div>
+                
+                <div class="w-2/3 space-y-4">
+                    <div class="p-4 border border-dashed border-gray-400 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle icon text-gray-500"></i>
+                            <div>
+                                <h3 class="!mt-0 text-gray-700">Instrument Details Table</h3>
+                                <p class="text-sm text-gray-600">Stores rich details like <code class="bg-gray-200 text-sm p-1 rounded">brand: "Ibanez"</code> for many instruments per clip.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 border border-dashed border-gray-400 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-flask icon text-gray-500"></i>
+                            <div>
+                                <h3 class="!mt-0 text-gray-700">Experimental Attributes Table</h3>
+                                <p class="text-sm text-gray-600">A "sandbox" for new features like <code class="bg-gray-200 text-sm p-1 rounded">truss_present: 1</code> before promoting them.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+
+    <hr/>
+
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 1</span>
+            <span>Dataset Design & Feature Extraction</span>
+        </header>
+        <main class="content">
+            <h2>Worked Example: Creating Our First Data Points</h2>
+            <p class="text-gray-600 mt-2">Based on the visual evidence from our two sample clips, we can populate the core attributes table. This raw data forms the input for our analysis.</p>
+
+            <div class="flex mt-6 gap-8">
+                <div class="w-3/5">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr>
+                                <th class="p-3 border-b-2 border-gray-300 bg-gray-100">Field</th>
+                                <th class="p-3 border-b-2 border-gray-300 bg-gray-100 text-center">Solo Frame (L001)</th>
+                                <th class="p-3 border-b-2 border-gray-300 bg-gray-100 text-center">Band Frame (R001)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>clip_id</code></td><td class="p-2 border-b text-center">L001</td><td class="p-2 border-b text-center">R001</td></tr>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>people_count</code></td><td class="p-2 border-b text-center">1</td><td class="p-2 border-b text-center">3</td></tr>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>instrument_types</code></td><td class="p-2 border-b text-center">{guitar}</td><td class="p-2 border-b text-center">{guitar, drums}</td></tr>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>scene</code></td><td class="p-2 border-b text-center">home</td><td class="p-2 border-b text-center">stage</td></tr>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>camera_angle</code></td><td class="p-2 border-b text-center">side</td><td class="p-2 border-b text-center">front/oblique</td></tr>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>brightness</code></td><td class="p-2 border-b text-center">~0.45</td><td class="p-2 border-b text-center">~0.30</td></tr>
+                            <tr class="hover:bg-sky-50"><td class="p-2 border-b"><code>motion_magnitude</code></td><td class="p-2 border-b text-center">~0.25</td><td class="p-2 border-b text-center">~0.60</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="w-2/5">
+                    <canvas id="metricsChart"></canvas>
+                    <p class="text-center text-sm text-gray-500 mt-2">A chart comparing the illustrative brightness and motion values for the two clips.</p>
+                </div>
+            </div>
+
+            <h2 class="mt-10">Smart Encoding: From Sets to Vectors</h2>
+            <p class="text-gray-600 mt-2">For a model to understand categorical data like instrument types, we must convert it into a numerical format. Multi-hot encoding is a powerful choice for this.</p>
+
+            <div class="flex items-center justify-around mt-6 p-6 bg-gray-50 rounded-lg">
+                <div class="text-center">
+                    <h3 class="!mt-0">Set Form</h3>
+                    <p class="text-gray-500">(Human-Readable)</p>
+                    <div class="mt-4 space-y-2">
+                        <p>L001: <code>{guitar}</code></p>
+                        <p>R001: <code>{guitar, drums}</code></p>
+                    </div>
+                </div>
+
+                <div class="text-gray-300 text-5xl mx-8">
+                    <i class="fas fa-angle-double-right"></i>
+                </div>
+
+                <div class="text-center">
+                    <h3 class="!mt-0">Multi-Hot Vector</h3>
+                    <p class="text-gray-500">(Model-Friendly)</p>
+                    <div class="mt-4 space-y-2">
+                        <p>L001: <code class="text-lg">[0, 1, 0]</code></p>
+                        <p>R001: <code class="text-lg">[1, 1, 0]</code></p>
+                    </div>
+                </div>
+
+                <div class="ml-8 text-left text-sm text-gray-700 p-4 bg-sky-50 border-l-4 border-sky-400">
+                    <strong class="text-sky-800">Vocabulary:</strong>
+                    <code>[drums, guitar, keyboard]</code>
+                    <hr class="my-2">
+                    <strong class="text-sky-800">Why is this better?</strong>
+                    A simple count (e.g., `num_instruments = 2`) loses **which** instruments are present. A vector preserves this detail, allowing models to learn instrument-specific patterns.
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+    
+    <hr/>
+    
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 1</span>
+            <span>Dataset Design & Feature Extraction</span>
+        </header>
+        <main class="content flex flex-col justify-center">
+            <div class="text-center">
+                <h2 class="!border-sky-500 inline-block px-4">The Data Miner's Mindset</h2>
+                <p class="text-lg text-gray-600 mt-4 max-w-3xl mx-auto">This process is fundamentally different from solving a textbook algorithm problem. It's an iterative cycle of design, testing, and refinement, not a linear path to a single optimal solution.</p>
+            </div>
+            
+            <div class="flex justify-around items-center mt-16 text-center">
+                <div class="w-2/5 p-6 border-2 border-gray-300 rounded-lg shadow-sm">
+                    <i class="fas fa-ruler-horizontal text-4xl text-gray-500 mb-4"></i>
+                    <h3 class="text-gray-800">Algorithms</h3>
+                    <p class="text-gray-600 mt-2">Find a provably optimal solution for a well-defined problem.</p>
+                    <div class="mt-8 space-y-2">
+                        <div class="flex items-center text-left bg-gray-100 p-3 rounded-md">
+                            <i class="fas fa-search icon text-gray-500"></i>
+                            <div><strong>Problem:</strong> Search a sorted array.</div>
+                        </div>
+                        <div class="text-2xl text-gray-400 my-2"><i class="fas fa-arrow-down"></i></div>
+                        <div class="flex items-center text-left bg-teal-50 p-3 rounded-md border border-teal-200">
+                            <i class="fas fa-check-circle icon text-teal-500"></i>
+                            <div><strong>Solution:</strong> Use Binary Search.</div>
+                        </div>
+                    </div>
+                    <div class="mt-6 text-sm font-semibold text-gray-500">A LINEAR PATH</div>
+                </div>
+
+                <div class="w-2/5 p-6 border-2 border-sky-400 bg-sky-50 rounded-lg shadow-lg">
+                    <i class="fas fa-sync-alt text-4xl text-sky-500 mb-4"></i>
+                    <h3 class="text-sky-800">Data Mining</h3>
+                    <p class="text-sky-700 mt-2">Design, test, inspect errors, and refine to discover the best approach.</p>
+                    <div class="relative w-48 h-48 mx-auto mt-8">
+                        <div class="absolute top-0 left-1/2 -translate-x-1/2 text-sky-700"><i class="fas fa-drafting-compass"></i> Design</div>
+                        <div class="absolute right-0 top-1/2 -translate-y-1/2 text-sky-700">Test <i class="fas fa-vial"></i></div>
+                        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 text-sky-700"><i class="fas fa-search-plus"></i> Inspect</div>
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 text-sky-700">Refine <i class="fas fa-wrench"></i></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-5xl text-sky-300 animate-spin" style="animation-duration: 10s;">
+                            <i class="fas fa-sync-alt"></i>
+                        </div>
+                    </div>
+                     <div class="mt-6 text-sm font-semibold text-sky-600">A CYCLICAL PROCESS</div>
+                </div>
+            </div>
+            
+            <div class="mt-16 text-center">
+                <p class="text-xl font-semibold text-gray-800 bg-yellow-100 border border-yellow-300 p-4 rounded-lg inline-block">
+                    <i class="fas fa-lightbulb text-yellow-500"></i> This iterative loop is the job, not a sign of failure.
+                </p>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Chart.js implementation for the metrics chart
+            const ctx = document.getElementById('metricsChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Brightness', 'Motion Magnitude'],
+                        datasets: [{
+                            label: 'Solo Clip (L001)',
+                            data: [0.45, 0.25],
+                            backgroundColor: 'rgba(56, 189, 248, 0.6)', // sky-400
+                            borderColor: 'rgba(14, 165, 233, 1)', // sky-500
+                            borderWidth: 1
+                        }, {
+                            label: 'Band Clip (R001)',
+                            data: [0.30, 0.60],
+                            backgroundColor: 'rgba(107, 114, 128, 0.6)', // gray-500
+                            borderColor: 'rgba(55, 65, 81, 1)', // gray-700
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 1.0,
+                                title: {
+                                    display: true,
+                                    text: 'Illustrative Scale (0-1)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Visual Metrics Comparison',
+                                font: {
+                                    size: 16
+                                }
+                            },
+                            legend: {
+                                position: 'bottom',
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

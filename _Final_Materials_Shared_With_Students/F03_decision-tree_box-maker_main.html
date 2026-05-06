@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fixed: 8-Zone Supply Chain Sorter</title>
+    <style>
+        :root {
+            --oem-blue: #2980b9;  
+            --market-orange: #d35400; 
+            --bg: #f4f6f7;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin: 10px 0 5px 0; color: var(--text); font-size: 1.5rem; }
+        .subtitle { color: #7f8c8d; margin-bottom: 15px; text-align: center; font-size: 0.9rem; }
+
+        .main-stage {
+            display: grid;
+            grid-template-columns: 1.6fr 0.4fr; /* WIDER floor for 8 piles */
+            gap: 15px;
+            width: 100%;
+            max-width: 1300px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-weight: bold;
+            color: var(--text);
+            margin-bottom: 5px;
+            border-bottom: 2px solid #eee;
+            width: 100%;
+            text-align: center;
+            padding-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        canvas { background: #fafafa; border-radius: 6px; }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: #fff;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            margin-bottom: 10px;
+        }
+
+        button {
+            background: var(--oem-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover { background: #1a5276; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        .step-indicator { font-size: 1.1rem; font-weight: bold; min-width: 100px; text-align: center; }
+
+        .narrative {
+            width: 100%;
+            max-width: 1200px;
+            background: #eaf2f8; 
+            border-left: 5px solid var(--oem-blue);
+            padding: 15px;
+            margin-top: 10px;
+            color: #2c3e50;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Fixed: 8-Zone Supply Chain Sorter</h1>
+<div class="subtitle">
+    <b>Level 1:</b> Box vs Barrel &nbsp;|&nbsp; 
+    <b>Level 2:</b> OEM vs Factory &nbsp;|&nbsp; 
+    <b>Level 3:</b> READY vs NOT READY
+</div>
+
+<div class="controls">
+    <button id="btn-prev" onclick="changeStep(-1)">Previous</button>
+    <div class="step-indicator" id="stepDisplay">Step 0</div>
+    <button id="btn-next" onclick="changeStep(1)">Next</button>
+</div>
+
+<div class="main-stage">
+    <div class="panel">
+        <div class="panel-title">The Sorting Floor (8 Distinct Bins)</div>
+        <canvas id="floorCanvas" width="900" height="500"></canvas>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">Logic Tree</div>
+        <canvas id="treeCanvas" width="300" height="500"></canvas>
+    </div>
+</div>
+
+<div class="narrative" id="narrative-text">Loading...</div>
+
+<script>
+    const floorCanvas = document.getElementById('floorCanvas');
+    const floorCtx = floorCanvas.getContext('2d');
+    const treeCanvas = document.getElementById('treeCanvas');
+    const treeCtx = treeCanvas.getContext('2d');
+
+    let currentStep = 0;
+    const totalSteps = 3; 
+
+    const items = [];
+    const count = 100;
+
+    function initData() {
+        items.length = 0;
+        for(let i=0; i<count; i++) {
+            // 1. TYPE
+            const isBox = Math.random() > 0.5;
+            // 2. BRAND
+            const isOEM = Math.random() > 0.5;
+            // 3. STATUS (Full/Solid vs Empty/Hollow)
+            let isFull = false;
+            // Make the data interesting: 
+            // OEM is mostly Full, Aftermarket is mostly Empty
+            if (isOEM) isFull = Math.random() > 0.2; 
+            else isFull = Math.random() > 0.8;
+
+            items.push({
+                type: isBox ? 'box' : 'barrel',
+                brand: isOEM ? 'oem' : 'aftermarket',
+                status: isFull ? 'full' : 'empty',
+                color: isOEM ? '#2980b9' : '#d35400',
+                
+                // Physics
+                x: 450 + (Math.random()-0.5)*200, 
+                y: 250 + (Math.random()-0.5)*150,
+                tx: 450, ty: 250
+            });
+        }
+    }
+
+    const steps = [
+        {
+            title: "Start: The Pile",
+            desc: "We have 100 mixed items. <br><b>Solid Shapes</b> = Ready to Ship (Full). <br><b>Hollow Shapes</b> = Not Ready (Empty). <br>They are all mixed together."
+        },
+        {
+            title: "Split 1: Hard Parts vs. Fluids",
+            desc: "The conveyor splits Left and Right. <br><b>Left:</b> Boxes (Engines/Parts). <br><b>Right:</b> Barrels (Fluids)."
+        },
+        {
+            title: "Split 2: OEM vs. Factory",
+            desc: "Now we split Top and Bottom based on Brand. <br><b>Top Row:</b> OEM (Blue). <br><b>Bottom Row:</b> Factory (Orange)."
+        },
+        {
+            title: "Split 3: THE FINAL SORT (Ready vs. Empty)",
+            desc: "Look at the 8 bins below. <br>We physically separate the <b>Full (Ready)</b> items from the <b>Empty</b> ones. <br>Notice how the 'Factory' piles (Orange) have huge 'Empty' bins, while OEM has huge 'Ready' bins."
+        }
+    ];
+
+    function updatePhysics() {
+        let moving = false;
+        items.forEach(p => {
+            p.x += (p.tx - p.x) * 0.1;
+            p.y += (p.ty - p.y) * 0.1;
+            if(Math.abs(p.tx - p.x) > 0.5) moving = true;
+        });
+        drawFloor();
+        if(moving) requestAnimationFrame(updatePhysics);
+    }
+
+    function setTargets() {
+        const w = floorCanvas.width;
+        const h = floorCanvas.height;
+
+        items.forEach(p => {
+            const noiseX = (Math.random()-0.5) * 40;
+            const noiseY = (Math.random()-0.5) * 30;
+
+            if (currentStep === 0) {
+                p.tx = w/2 + noiseX*2;
+                p.ty = h/2 + noiseY*2;
+            }
+            // Step 1: Left/Right
+            else if (currentStep === 1) {
+                if (p.type === 'box') p.tx = w*0.25 + noiseX;
+                else p.tx = w*0.75 + noiseX;
+                p.ty = h/2 + noiseY;
+            }
+            // Step 2: Top/Bottom
+            else if (currentStep === 2) {
+                let tx = (p.type === 'box') ? w*0.25 : w*0.75;
+                let ty = (p.brand === 'oem') ? h*0.25 : h*0.75;
+                p.tx = tx + noiseX;
+                p.ty = ty + noiseY;
+            }
+            // Step 3: 8 BINS (The Fix)
+            else if (currentStep === 3) {
+                // Determine base quadrant center
+                let baseX = (p.type === 'box') ? w*0.25 : w*0.75;
+                let baseY = (p.brand === 'oem') ? h*0.25 : h*0.75;
+                
+                // HARD SEPARATION: Move -80px Left for Full, +80px Right for Empty
+                let offsetX = (p.status === 'full') ? -80 : 80;
+                
+                p.tx = baseX + offsetX + noiseX;
+                p.ty = baseY + noiseY;
+            }
+        });
+        updatePhysics();
+    }
+
+    function drawFloor() {
+        const w = floorCanvas.width;
+        const h = floorCanvas.height;
+        floorCtx.clearRect(0,0,w,h);
+
+        // Draw the 8 BIN OUTLINES (Only in Step 3)
+        if (currentStep === 3) {
+            floorCtx.strokeStyle = "#ccc";
+            floorCtx.lineWidth = 2;
+            floorCtx.setLineDash([5,5]);
+            
+            // Draw 8 rectangles for the bins
+            const centers = [
+                {x: w*0.25, y: h*0.25}, // Top Left
+                {x: w*0.75, y: h*0.25}, // Top Right
+                {x: w*0.25, y: h*0.75}, // Bot Left
+                {x: w*0.75, y: h*0.75}  // Bot Right
+            ];
+
+            centers.forEach(c => {
+                // Left Bin (Full)
+                floorCtx.strokeRect(c.x - 130, c.y - 60, 100, 120);
+                drawBinLabel(floorCtx, "READY", c.x - 80, c.y - 70);
+                
+                // Right Bin (Empty)
+                floorCtx.strokeRect(c.x + 30, c.y - 60, 100, 120);
+                drawBinLabel(floorCtx, "EMPTY", c.x + 80, c.y - 70);
+            });
+            floorCtx.setLineDash([]);
+        }
+
+        // Dividers
+        floorCtx.strokeStyle = "#e0e0e0";
+        floorCtx.lineWidth = 1;
+        
+        if(currentStep >= 1) {
+            floorCtx.beginPath(); floorCtx.moveTo(w/2, 0); floorCtx.lineTo(w/2, h); floorCtx.stroke();
+            drawBigLabel(floorCtx, "HARD PARTS (BOXES)", w*0.25, 30);
+            drawBigLabel(floorCtx, "FLUIDS (BARRELS)", w*0.75, 30);
+        }
+        if(currentStep >= 2) {
+            floorCtx.beginPath(); floorCtx.moveTo(0, h/2); floorCtx.lineTo(w, h/2); floorCtx.stroke();
+            drawBigLabel(floorCtx, "OEM (Mother Co)", 100, h/2 - 10);
+            drawBigLabel(floorCtx, "FACTORY (Generic)", 100, h/2 + 20);
+        }
+
+        // Draw Items
+        items.forEach(p => {
+            floorCtx.fillStyle = p.color;
+            floorCtx.strokeStyle = p.color;
+            floorCtx.lineWidth = 2;
+            const s = 8;
+
+            floorCtx.beginPath();
+            if (p.type === 'box') floorCtx.rect(p.x-s, p.y-s, s*2, s*2);
+            else floorCtx.arc(p.x, p.y, s, 0, Math.PI*2);
+
+            if (p.status === 'full') {
+                floorCtx.fill(); 
+            } else {
+                floorCtx.stroke(); 
+                floorCtx.fillStyle = 'rgba(255,255,255,0.7)';
+                floorCtx.fill();
+                floorCtx.stroke();
+            }
+        });
+    }
+
+    function drawBigLabel(ctx, t, x, y) {
+        ctx.fillStyle = "#bdc3c7"; ctx.font = "bold 16px sans-serif"; ctx.textAlign="center"; ctx.fillText(t,x,y);
+    }
+    function drawBinLabel(ctx, t, x, y) {
+        ctx.fillStyle = "#333"; ctx.font = "bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(t,x,y);
+    }
+
+    function drawTree() {
+        const w = treeCanvas.width;
+        const h = treeCanvas.height;
+        treeCtx.clearRect(0,0,w,h);
+        treeCtx.textAlign = "center";
+        
+        const rx = w/2; 
+        const ry = 30;
+        const lh = 90; 
+
+        // Node Helper
+        function node(x, y, txt, active, type) {
+            treeCtx.beginPath();
+            if(type==='leaf') treeCtx.rect(x-12, y-10, 24, 20);
+            else treeCtx.arc(x, y, 18, 0, Math.PI*2);
+            
+            treeCtx.fillStyle = active ? '#2980b9' : '#ecf0f1';
+            treeCtx.fill();
+            treeCtx.strokeStyle = '#2c3e50';
+            treeCtx.stroke();
+            
+            treeCtx.fillStyle = '#333';
+            treeCtx.font = "10px Arial";
+            treeCtx.fillText(txt, x, y + (type==='leaf'?25:30));
+        }
+        function edge(x1, y1, x2, y2) {
+            treeCtx.beginPath(); treeCtx.moveTo(x1, y1+18); treeCtx.lineTo(x2, y2-15);
+            treeCtx.strokeStyle = "#bdc3c7"; treeCtx.stroke();
+        }
+
+        if(currentStep>=1) {
+            node(rx, ry, "Type", true, 'root');
+            edge(rx, ry, w*0.3, ry+lh);
+            edge(rx, ry, w*0.7, ry+lh);
+            node(w*0.3, ry+lh, "Box", currentStep>=1, 'node');
+            node(w*0.7, ry+lh, "Barl", currentStep>=1, 'node');
+        }
+        if(currentStep>=2) {
+            edge(w*0.3, ry+lh, w*0.15, ry+lh*2);
+            edge(w*0.3, ry+lh, w*0.45, ry+lh*2);
+            node(w*0.15, ry+lh*2, "OEM", currentStep>=2, 'node');
+            node(w*0.45, ry+lh*2, "Fact", currentStep>=2, 'node');
+            
+            edge(w*0.7, ry+lh, w*0.60, ry+lh*2);
+            edge(w*0.7, ry+lh, w*0.90, ry+lh*2);
+            node(w*0.60, ry+lh*2, "OEM", currentStep>=2, 'node');
+            node(w*0.90, ry+lh*2, "Fact", currentStep>=2, 'node');
+        }
+        if(currentStep>=3) {
+            // Level 3 Leaves - Visualizing the 8 outcomes
+            const y3 = ry + lh*3;
+            // Left Branch leaves
+            edge(w*0.15, ry+lh*2, w*0.10, y3); edge(w*0.15, ry+lh*2, w*0.20, y3);
+            node(w*0.10, y3, "OK", true, 'leaf'); node(w*0.20, y3, "NO", true, 'leaf');
+            
+            edge(w*0.45, ry+lh*2, w*0.40, y3); edge(w*0.45, ry+lh*2, w*0.50, y3);
+            node(w*0.40, y3, "OK", true, 'leaf'); node(w*0.50, y3, "NO", true, 'leaf');
+
+            // Right Branch leaves
+            edge(w*0.60, ry+lh*2, w*0.55, y3); edge(w*0.60, ry+lh*2, w*0.65, y3);
+            node(w*0.55, y3, "OK", true, 'leaf'); node(w*0.65, y3, "NO", true, 'leaf');
+            
+            edge(w*0.90, ry+lh*2, w*0.85, y3); edge(w*0.90, ry+lh*2, w*0.95, y3);
+            node(w*0.85, y3, "OK", true, 'leaf'); node(w*0.95, y3, "NO", true, 'leaf');
+        }
+    }
+
+    function changeStep(d) {
+        currentStep += d;
+        if(currentStep < 0) currentStep = 0;
+        if(currentStep > totalSteps) currentStep = totalSteps;
+        
+        document.getElementById('stepDisplay').innerText = `Step ${currentStep}`;
+        document.getElementById('narrative-text').innerHTML = `
+            <strong>${steps[currentStep].title}</strong><br>${steps[currentStep].desc}`;
+        
+        setTargets();
+        drawTree();
+    }
+
+    initData();
+    changeStep(0);
+</script>
+</body>
+</html>

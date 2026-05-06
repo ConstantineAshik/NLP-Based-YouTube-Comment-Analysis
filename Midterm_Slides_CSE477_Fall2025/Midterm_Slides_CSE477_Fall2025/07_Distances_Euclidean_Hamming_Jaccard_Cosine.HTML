@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infographic: Similarity & Distances</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e5e7eb; /* gray-200 */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 2rem auto;
+            padding: 15mm 20mm;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .page:last-of-type {
+            min-height: auto;
+            height: 297mm;
+        }
+
+        .page-header, .page-footer {
+            width: calc(100% - 40mm);
+            position: absolute;
+            left: 20mm;
+        }
+
+        .page-header {
+            top: 10mm;
+            font-size: 0.8rem;
+            color: #4b5563; /* gray-600 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-footer {
+            bottom: 10mm;
+            font-size: 0.8rem;
+            color: #4b5563; /* gray-600 */
+            text-align: right;
+            counter-increment: page;
+        }
+
+        .page-footer::after {
+            content: "Page " counter(page);
+        }
+
+        .content {
+            flex-grow: 1;
+            padding-top: 15mm;
+            padding-bottom: 15mm;
+        }
+        
+        h1 { font-size: 2.5rem; font-weight: 700; color: #111827; }
+        h2 { font-size: 1.5rem; font-weight: 600; color: #1f2937; margin-top: 1.25rem; padding-bottom: 0.5rem; border-bottom: 2px solid #f59e0b; }
+        h3 { font-size: 1.25rem; font-weight: 600; color: #374151; margin-top: 1rem; }
+        
+        .icon {
+            color: #f59e0b; /* amber-500 */
+            margin-right: 0.75rem;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .formula-box {
+            background-color: #f3f4f6; /* gray-100 */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db; /* gray-300 */
+            font-size: 1.2rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        .key-point {
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background-color: #fffbeb; /* amber-50 */
+            border-left: 4px solid #f59e0b; /* amber-500 */
+            color: #b45309; /* amber-700 */
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                margin: 0;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                page-break-after: always;
+            }
+            .page:last-child {
+                page-break-after: auto;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-200">
+
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content flex flex-col justify-center">
+            <div class="text-center">
+                <span class="text-lg font-semibold text-amber-500">Part 4: The Finale</span>
+                <h1 class="leading-tight">Similarity & Distances</h1>
+                <p class="text-xl text-gray-600 mt-2 max-w-2xl mx-auto">Answering the question, "How close are these two clips?" using different mathematical lenses.</p>
+                <i class="fas fa-ruler-combined text-7xl text-gray-200 mt-16"></i>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content">
+            <h2>Recap: Our Two Clips</h2>
+            <p class="text-gray-600 mt-2">To compare our "solo" and "band" clips, we'll use the different types of features we've developed. The answer to "how similar are they?" depends entirely on which features we use and how we measure them.</p>
+            
+            <div class="grid grid-cols-2 gap-6 mt-8">
+                <div class="p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="flex items-center !mt-0"><i class="fas fa-calculator icon"></i>Numeric (Normalized)</h3>
+                    <p class="font-mono mt-2">L001': (0, 1, 0)</p>
+                    <p class="font-mono">R001': (1, 0, 1)</p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="flex items-center !mt-0"><i class="fas fa-tags icon"></i>Categorical</h3>
+                    <p class="mt-2">L001: scene=home, angle=side</p>
+                    <p>R001: scene=stage, angle=front/oblique</p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="flex items-center !mt-0"><i class="fas fa-grip-horizontal icon"></i>Sets</h3>
+                    <p class="mt-2">L001: instrument_types = {guitar}</p>
+                    <p>R001: instrument_types = {guitar, drums}</p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="flex items-center !mt-0"><i class="fas fa-font icon"></i>Text</h3>
+                    <p class="mt-2 text-sm">L001: "home solo guitar practice"</p>
+                    <p class="text-sm">R001: "stage band guitar drums"</p>
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+    
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content">
+            <h2>Lens 1: Euclidean Distance (for Numeric Data)</h2>
+            <p class="text-gray-600 mt-2">Measures the straight-line "as the crow flies" distance between two points. It is highly sensitive to the magnitude (scale) of the features.</p>
+            <div class="grid grid-cols-2 gap-6 mt-4">
+                <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <h4 class="font-semibold text-red-800">Unscaled Data Distance ≈ 2.037</h4>
+                    <p class="text-sm text-red-700 mt-1">This result was misleadingly driven almost entirely by the `people_count` feature.</p>
+                </div>
+                <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 class="font-semibold text-green-800">Scaled Data Distance ≈ 1.732</h4>
+                    <p class="text-sm text-green-700 mt-1">Gives a balanced contribution from all features, making the comparison meaningful.</p>
+                </div>
+            </div>
+            <div class="key-point">
+                <strong>Key Point:</strong> If you use Euclidean distance, you **must** scale your numeric features first. Otherwise, you're not comparing content, you're just comparing units.
+            </div>
+
+            <h2 class="mt-10">Lens 2: Cosine Similarity (for Numeric Data)</h2>
+            <p class="text-gray-600 mt-2">Measures the cosine of the angle ($ \theta $) between two vectors, ignoring their magnitude. It tells us if they point in the same direction.</p>
+            <div class="grid grid-cols-2 gap-6 mt-4">
+                <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <h4 class="font-semibold text-red-800">On Raw Vectors: Similarity ≈ 0.951</h4>
+                    <p class="text-sm text-red-700 mt-1">Deceptively high. The large `people_count` value forces both vectors to point in a roughly similar direction.</p>
+                </div>
+                <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 class="font-semibold text-green-800">On Normalized Vectors: Similarity = 0.0</h4>
+                    <p class="text-sm text-green-700 mt-1">The vectors are orthogonal (90° angle), correctly identifying that their feature emphases are completely different.</p>
+                </div>
+            </div>
+             <div class="key-point">
+                <strong>Key Point:</strong> Cosine similarity is excellent for comparing the proportions of features, not their absolute scales.
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+    
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content">
+            <h2>Lens 3: Hamming Distance (for Categorical Data)</h2>
+            <p class="text-gray-600 mt-2">A simple and intuitive metric that counts the number of positions where labels are different.</p>
+            <div class="mt-4 p-4 border rounded-lg">
+                <div class="flex justify-around items-center text-center">
+                    <div>
+                        <p class="font-semibold">L001</p>
+                        <p class="font-mono mt-2">scene = home</p>
+                        <p class="font-mono mt-2">angle = side</p>
+                    </div>
+                    <div class="text-4xl text-gray-300">vs.</div>
+                    <div>
+                        <p class="font-semibold">R001</p>
+                        <p class="font-mono mt-2">scene = stage</p>
+                        <p class="font-mono mt-2">angle = front/oblique</p>
+                    </div>
+                </div>
+                <hr class="my-4">
+                <div class="text-lg space-y-2">
+                    <p>Feature 'scene': <code class="bg-red-100 p-1 rounded">home ≠ stage</code> → Mismatch = 1</p>
+                    <p>Feature 'angle': <code class="bg-red-100 p-1 rounded">side ≠ front/oblique</code> → Mismatch = 1</p>
+                    <p class="mt-2 font-bold">Total Hamming Distance = 2</p>
+                </div>
+            </div>
+             <div class="key-point">
+                <strong>Key Point:</strong> Hamming distance is an "all or nothing" comparison. It's useful but can be brittle if labels are noisy or inconsistent.
+            </div>
+            
+            <h2 class="mt-10">Lens 4: Jaccard Similarity (for Sets)</h2>
+            <p class="text-gray-600 mt-2">The perfect metric for comparing sets, like our `instrument_types`. It measures the ratio of the intersection to the union of the sets.</p>
+            <div class="formula-box text-lg">
+                <div id="jaccard_formula"></div>
+            </div>
+            <div class="flex items-center justify-center mt-6 space-x-8">
+                <div class="w-40 h-40 border-2 border-amber-500 rounded-full flex items-center justify-center text-center relative -mr-12">L001<br>{guitar}</div>
+                <div class="w-40 h-40 border-2 border-blue-500 rounded-full flex items-center justify-center text-center relative">{guitar, drums}<br>R001</div>
+            </div>
+            <div class="text-center mt-6">
+                <p>Intersection ({guitar} ∩ {guitar, drums}) → {guitar}, Size = 1</p>
+                <p>Union ({guitar} ∪ {guitar, drums}) → {guitar, drums}, Size = 2</p>
+                <p class="text-xl font-bold mt-2">Jaccard Similarity = 1 / 2 = 0.5</p>
+            </div>
+            <div class="key-point">
+                <strong>Key Point:</strong> This elegantly captures the story: "The clips share one instrument, but the union of all instruments between them is two."
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+    
+     <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content">
+            <h2>Lens 5: Cosine Similarity (for Text Data)</h2>
+            <p class="text-gray-600 mt-2">The same cosine principle can be used on text by first converting sentences into numerical vectors using a "bag of words" approach.</p>
+
+            <h3 class="mt-6">1. Define Vocabulary & Create Vectors</h3>
+            <p class="text-sm text-gray-600">Vocabulary: {home, solo, guitar, practice, stage, band, drums}</p>
+            <table class="w-full text-left border-collapse mt-4">
+                <thead>
+                    <tr><th class="p-2 border-b-2 bg-gray-100">Clip</th><th class="p-2 border-b-2 bg-gray-100">Description</th><th class="p-2 border-b-2 bg-gray-100">Vector</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="hover:bg-amber-50"><td class="p-2 border-b">L001</td><td class="p-2 border-b text-sm">"home solo guitar practice"</td><td class="p-2 border-b font-mono">[1, 1, 1, 1, 0, 0, 0]</td></tr>
+                     <tr class="hover:bg-amber-50"><td class="p-2 border-b">R001</td><td class="p-2 border-b text-sm">"stage band guitar drums"</td><td class="p-2 border-b font-mono">[0, 0, 1, 0, 1, 1, 1]</td></tr>
+                </tbody>
+            </table>
+
+            <h3 class="mt-8">2. Calculate Similarity</h3>
+            <p class="text-gray-700">By calculating the cosine of the angle between these two vectors, we find:</p>
+            <div class="text-center my-4">
+                <p class="text-3xl font-bold text-amber-600">Cosine Similarity ≈ 0.25</p>
+            </div>
+            
+             <div class="key-point">
+                <strong>Key Point:</strong> The text descriptions are considered mostly different, with the word "guitar" as their only shared anchor. This is a powerful way to measure conceptual similarity from metadata.
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+    
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content">
+            <h2 class="text-center">The Same Two Clips, Many Different Answers</h2>
+            <p class="text-center text-gray-600 mt-2">There is no single "true" distance. The metric you choose defines the answer you get.</p>
+            
+            <div class="mt-6">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr>
+                            <th class="p-3 border-b-2 border-gray-300 bg-gray-100 text-left">Metric</th>
+                            <th class="p-3 border-b-2 border-gray-300 bg-gray-100 text-center">Result (Distance/Similarity)</th>
+                            <th class="p-3 border-b-2 border-gray-300 bg-gray-100 text-left">What It "Means" Here</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="hover:bg-amber-50"><td class="p-3 border-b">Euclidean (Unscaled)</td><td class="p-3 border-b text-center font-mono">2.037</td><td class="p-3 border-b">A big difference, but misleadingly only in people_count.</td></tr>
+                        <tr class="hover:bg-amber-50"><td class="p-3 border-b">Euclidean (Scaled)</td><td class="p-3 border-b text-center font-mono">1.732</td><td class="p-3 border-b">A balanced numeric contrast across all features.</td></tr>
+                        <tr class="hover:bg-amber-50"><td class="p-3 border-b">Cosine Similarity (Scaled)</td><td class="p-3 border-b text-center font-mono">0.0</td><td class="p-3 border-b">Their numeric feature emphases are completely different (orthogonal).</td></tr>
+                        <tr class="hover:bg-amber-50"><td class="p-3 border-b">Hamming (Categorical)</td><td class="p-3 border-b text-center font-mono">2.0</td><td class="p-3 border-b">Their assigned labels are 100% different.</td></tr>
+                        <tr class="hover:bg-amber-50"><td class="p-3 border-b">Jaccard Similarity (Sets)</td><td class="p-3 border-b text-center font-mono">0.5</td><td class="p-3 border-b">They have a 50% overlap in their visible instruments.</td></tr>
+                        <tr class="hover:bg-amber-50"><td class="p-3 border-b">Cosine Similarity (Text)</td><td class="p-3 border-b text-center font-mono">0.25</td><td class="p-3 border-b">Their text descriptions are mostly different, sharing only one word.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 class="mt-10">Common Pitfalls: Know Your Metric's Weakness</h2>
+            <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md"><strong>Euclidean</strong> lies if you forget to scale your data.</div>
+                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md"><strong>Cosine</strong> can be misleading if one massive feature dominates the vector's direction.</div>
+                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md"><strong>Hamming</strong> is very sensitive to a single mislabeled category.</div>
+                <div class="p-3 bg-yellow-50 border border-yellow-200 rounded-md"><strong>Jaccard</strong> can be punishing if some items in the set are more important than others.</div>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+    
+    <div class="page">
+        <header class="page-header">
+            <span>Applied Data Mining: Part 4</span>
+            <span>Similarity & Distances</span>
+        </header>
+        <main class="content flex flex-col justify-center">
+            <h2 class="text-center">Series Conclusion: The Data Mining Workflow</h2>
+            <p class="text-center text-gray-600 mt-2 max-w-3xl mx-auto">Over these four parts, we've completed a full, realistic data mining arc, moving from raw concepts to quantifiable comparisons.</p>
+            
+            <div class="flex items-center justify-between mt-16 text-center text-gray-700">
+                <div class="w-1/4">
+                    <div class="p-4 bg-sky-100 rounded-lg shadow-md">
+                        <i class="fas fa-database text-3xl text-sky-500 mb-2"></i>
+                        <h3 class="!mt-0 text-sm">Part 1: Schema Design</h3>
+                        <p class="text-xs">Design a robust schema and extract raw features.</p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right text-3xl text-gray-300 mx-2"></i>
+                <div class="w-1/4">
+                    <div class="p-4 bg-indigo-100 rounded-lg shadow-md">
+                        <i class="fas fa-broom text-3xl text-indigo-500 mb-2"></i>
+                        <h3 class="!mt-0 text-sm">Part 2: Cleaning</h3>
+                        <p class="text-xs">Clean, impute, and normalize features for fairness.</p>
+                    </div>
+                </div>
+                 <i class="fas fa-chevron-right text-3xl text-gray-300 mx-2"></i>
+                <div class="w-1/4">
+                    <div class="p-4 bg-cyan-100 rounded-lg shadow-md">
+                        <i class="fas fa-compress-alt text-3xl text-cyan-500 mb-2"></i>
+                        <h3 class="!mt-0 text-sm">Part 3: Reduction</h3>
+                        <p class="text-xs">Select features or use PCA to reduce complexity.</p>
+                    </div>
+                </div>
+                 <i class="fas fa-chevron-right text-3xl text-gray-300 mx-2"></i>
+                <div class="w-1/4">
+                    <div class="p-4 bg-amber-100 rounded-lg shadow-md">
+                        <i class="fas fa-ruler-combined text-3xl text-amber-500 mb-2"></i>
+                        <h3 class="!mt-0 text-sm">Part 4: Similarity</h3>
+                        <p class="text-xs">Use a suite of metrics to compare data points.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-20 text-center p-6 bg-gray-800 text-white rounded-lg max-w-3xl mx-auto">
+                <h3 class="!mt-0 !text-white">The Ultimate Takeaway</h3>
+                <p class="text-lg text-gray-300 mt-2">Data mining is an iterative process of making informed choices. There are no universal "best" answers, only techniques that are right for your specific data and your specific goal.</p>
+            </div>
+        </main>
+        <footer class="page-footer"></footer>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            katex.render("J = \\frac{|A \\cap B|}{|A \\cup B|}", document.getElementById('jaccard_formula'), { throwOnError: false });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+support,itemsets,length
+0.12195121951219512,frozenset({'always'}),1
+0.14634146341463414,frozenset({'animal'}),1
+0.12195121951219512,frozenset({'bbc'}),1
+0.17073170731707318,frozenset({'beautiful'}),1
+0.14634146341463414,frozenset({'earth'}),1
+0.17073170731707318,frozenset({'journey'}),1
+0.12195121951219512,frozenset({'migration'}),1
+0.17073170731707318,frozenset({'nature'}),1
+0.14634146341463414,frozenset({'video'}),1
+0.36585365853658536,frozenset({'zebra'}),1
+0.12195121951219512,"frozenset({'animal', 'zebra'})",2
+0.12195121951219512,"frozenset({'earth', 'bbc'})",2
+0.12195121951219512,"frozenset({'beautiful', 'zebra'})",2
+0.12195121951219512,"frozenset({'zebra', 'journey'})",2
